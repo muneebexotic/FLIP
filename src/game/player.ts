@@ -32,6 +32,9 @@ export class Player {
   ev = { jumped: false, landed: false, flipped: false, died: false, won: false };
 
   reset(spawnFeetX: number, spawnFeetY: number): void {
+    // Pick up the active difficulty profile's hitbox each spawn.
+    this.box.w = PHYS.playerW;
+    this.box.h = PHYS.playerH;
     this.box.x = spawnFeetX - this.box.w / 2;
     this.box.y = spawnFeetY - this.box.h;
     this.vx = 0;

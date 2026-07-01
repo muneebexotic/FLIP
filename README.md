@@ -37,6 +37,16 @@ render interpolation, coyote time, jump buffering, variable jump height, asymmet
 rise/fall gravity, squash-and-stretch, screen shake, particle bursts, and a satisfying death
 + instant respawn (no loading between attempts).
 
+## Difficulty
+
+A difficulty-select screen (**Casual / Normal / Nightmare**) gates the game at boot. Each
+difficulty swaps *both* a physics/energy profile ([`src/config.ts`](src/config.ts)) and a level
+set ([`src/game/levels.ts`](src/game/levels.ts)), coordinated by
+[`src/difficulty.ts`](src/difficulty.ts). The choice is persisted, tagged on every leaderboard
+entry (boards are per-difficulty), and shown prominently on the share card. Casual is the
+reference tuning; Normal and Nightmare are wired up and currently clone Casual pending their own
+physics + levels (marked `// TODO` in config/levels).
+
 ## Project layout
 
 ```

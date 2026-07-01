@@ -1,3 +1,4 @@
+import type { Difficulty } from "../config";
 import { load, save } from "../core/storage";
 
 export type SortBy = "time" | "deaths";
@@ -5,6 +6,7 @@ export type SortBy = "time" | "deaths";
 export interface ScoreEntry {
   name: string;
   levelIndex: number;
+  difficulty: Difficulty;
   timeMs: number;
   deaths: number;
   createdAt: number;
@@ -15,7 +17,12 @@ export interface ScoreEntry {
 export interface Leaderboard {
   readonly isGlobal: boolean;
   submit(entry: ScoreEntry): Promise<void>;
-  top(levelIndex: number, sort: SortBy, limit?: number): Promise<ScoreEntry[]>;
+  top(
+    levelIndex: number,
+    difficulty: Difficulty,
+    sort: SortBy,
+    limit?: number,
+  ): Promise<ScoreEntry[]>;
 }
 
 function sortEntries(list: ScoreEntry[], sort: SortBy): ScoreEntry[] {
@@ -41,11 +48,18 @@ export class LocalLeaderboard implements Leaderboard {
     const all = this.all();
     all.push({ ...entry, mine: undefined });
     // Keep the store bounded.
-    save(this.key, all.slice(-500));
+    save(this.key, all.slice(-800));
   }
 
-  async top(levelIndex: number, sort: SortBy, limit = 20): Promise<ScoreEntry[]> {
-    const rows = this.all().filter((e) => e.levelIndex === levelIndex);
+  async top(
+    levelIndex: number,
+    difficulty: Difficulty,
+    sort: SortBy,
+    limit = 20,
+  ): Promise<ScoreEntry[]> {
+    const rows = this.all().filter(
+      (e) => e.levelIndex === levelIndex && (e.difficulty ?? "casual") === difficulty,
+    );
     return sortEntries(rows, sort).slice(0, limit);
   }
 }
@@ -77,6 +91,7 @@ export class SupabaseLeaderboard implements Leaderboard {
         headers: { ...this.headers(), Prefer: "return=minimal" },
         body: JSON.stringify({
           level: entry.levelIndex,
+          difficulty: entry.difficulty,
           name: entry.name.slice(0, 24),
           time_ms: Math.round(entry.timeMs),
           deaths: entry.deaths,
@@ -88,17 +103,24 @@ export class SupabaseLeaderboard implements Leaderboard {
     }
   }
 
-  async top(levelIndex: number, sort: SortBy, limit = 20): Promise<ScoreEntry[]> {
+  async top(
+    levelIndex: number,
+    difficulty: Difficulty,
+    sort: SortBy,
+    limit = 20,
+  ): Promise<ScoreEntry[]> {
     const order = sort === "time" ? "time_ms.asc" : "deaths.asc,time_ms.asc";
     try {
       const res = await fetch(
-        `${this.url}/rest/v1/scores?level=eq.${levelIndex}&order=${order}&limit=${limit}`,
+        `${this.url}/rest/v1/scores?level=eq.${levelIndex}&difficulty=eq.${difficulty}` +
+          `&order=${order}&limit=${limit}`,
         { headers: this.headers() },
       );
       if (!res.ok) throw new Error(`top ${res.status}`);
       const rows = (await res.json()) as Array<{
         name: string;
         level: number;
+        difficulty: Difficulty;
         time_ms: number;
         deaths: number;
         created_at: string;
@@ -106,13 +128,14 @@ export class SupabaseLeaderboard implements Leaderboard {
       return rows.map((r) => ({
         name: r.name,
         levelIndex: r.level,
+        difficulty: r.difficulty,
         timeMs: r.time_ms,
         deaths: r.deaths,
         createdAt: Date.parse(r.created_at) || 0,
       }));
     } catch (err) {
       console.warn("[leaderboard] global read failed, using local:", err);
-      return this.fallback.top(levelIndex, sort, limit);
+      return this.fallback.top(levelIndex, difficulty, sort, limit);
     }
   }
 }
@@ -125,21 +148,26 @@ export function createLeaderboard(): Leaderboard {
   return new LocalLeaderboard();
 }
 
-// ── Local personal-best tracking (drives level-select + progress) ────────────
+// ── Local personal-best tracking, namespaced per difficulty ──────────────────
 interface Best {
   timeMs: number;
   deaths: number;
 }
-export function getBest(levelIndex: number): Best | null {
-  return load<Best | null>(`best:${levelIndex}`, null);
+export function getBest(difficulty: Difficulty, levelIndex: number): Best | null {
+  return load<Best | null>(`best:${difficulty}:${levelIndex}`, null);
 }
-export function recordBest(levelIndex: number, timeMs: number, deaths: number): Best {
-  const prev = getBest(levelIndex);
+export function recordBest(
+  difficulty: Difficulty,
+  levelIndex: number,
+  timeMs: number,
+  deaths: number,
+): Best {
+  const prev = getBest(difficulty, levelIndex);
   const best: Best = {
     timeMs: prev ? Math.min(prev.timeMs, timeMs) : timeMs,
     deaths: prev ? Math.min(prev.deaths, deaths) : deaths,
   };
-  save(`best:${levelIndex}`, best);
+  save(`best:${difficulty}:${levelIndex}`, best);
   return best;
 }
 export function getPlayerName(): string {

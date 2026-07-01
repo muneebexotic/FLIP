@@ -21,10 +21,16 @@ if (!canvas) errors.push("no #game canvas");
 const box = await canvas?.boundingBox();
 if (!box || box.width < 100) errors.push(`canvas not sized: ${JSON.stringify(box)}`);
 
-// Menu present with a Play/Continue button.
+// Difficulty select appears first.
 await page.waitForSelector(".title", { timeout: 5000 }).catch(() => errors.push("no title"));
-const playBtn = await page.$('button[data-act="play"]');
-if (!playBtn) errors.push("no play button");
+const diffCard = await page.$('.diffcard[data-diff="casual"]');
+if (!diffCard) errors.push("no difficulty cards");
+await diffCard?.click();
+await page.waitForTimeout(250);
+
+// Then the menu, with a Play/Continue button.
+const playBtn = await page.waitForSelector('button[data-act="play"]', { timeout: 5000 }).catch(() => null);
+if (!playBtn) errors.push("no play button after choosing difficulty");
 
 // Start playing.
 await playBtn?.click();

@@ -6,6 +6,8 @@ export interface CardData {
   levelName: string;
   worldName: string;
   palette: Palette;
+  difficultyName: string; // "Nightmare"
+  difficultyColor: string;
   timeSec: number;
   deaths: number;
   completed: boolean; // true = cleared, false = "struggling" card
@@ -63,9 +65,9 @@ export function renderCard(data: CardData): HTMLCanvasElement {
   }
   ctx.globalAlpha = 1;
 
-  // Decorative hazards + player motif on the right.
+  // Decorative hazards + player motif on the right (below the badge).
   ctx.save();
-  ctx.translate(980, 150);
+  ctx.translate(980, 220);
   for (let i = 0; i < 5; i++) {
     ctx.save();
     ctx.translate(i * 8, i * 78);
@@ -103,6 +105,33 @@ export function renderCard(data: CardData): HTMLCanvasElement {
   ctx.fillStyle = pal.accent;
   ctx.font = "600 26px system-ui, sans-serif";
   ctx.fillText("gravity is a suggestion", 250, 240);
+
+  // Difficulty badge — prominent, top-right.
+  const dLabel = data.difficultyName.toUpperCase();
+  ctx.font = "800 34px system-ui, sans-serif";
+  const dw = Math.max(240, ctx.measureText(dLabel).width + 70);
+  const dh = 84;
+  const dx = W - dw - 56;
+  const dy = 56;
+  ctx.save();
+  ctx.fillStyle = data.difficultyColor;
+  ctx.globalAlpha = 0.16;
+  roundRect(ctx, dx, dy, dw, dh, 20);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = data.difficultyColor;
+  roundRect(ctx, dx, dy, dw, dh, 20);
+  ctx.stroke();
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.font = "700 15px system-ui, sans-serif";
+  ctx.fillText("DIFFICULTY", dx + dw / 2, dy + 30);
+  ctx.fillStyle = data.difficultyColor;
+  ctx.font = "800 34px system-ui, sans-serif";
+  ctx.fillText(dLabel, dx + dw / 2, dy + 66);
+  ctx.textAlign = "left";
+  ctx.restore();
 
   // Headline verdict.
   ctx.fillStyle = pal.text;
@@ -167,10 +196,10 @@ export async function shareRun(data: CardData): Promise<ShareResult> {
   const blob = await toBlob(canvas);
   const url = location.href.split("?")[0].split("#")[0];
   const caption = data.completed
-    ? `I cleared ${data.worldName} ${data.levelLabel} in FLIP — ${formatTime(
+    ? `I cleared ${data.worldName} ${data.levelLabel} on ${data.difficultyName} in FLIP — ${formatTime(
         data.timeSec,
       )}, ${data.deaths} deaths. Think you can flip better?`
-    : `${data.deaths} deaths on ${data.worldName} ${data.levelLabel} in FLIP and I'm not done. Beat me:`;
+    : `${data.deaths} deaths on ${data.worldName} ${data.levelLabel} (${data.difficultyName}) in FLIP and I'm not done. Beat me:`;
 
   const file = new File([blob], "flip-run.png", { type: "image/png" });
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };

@@ -1,3 +1,4 @@
+import type { Difficulty } from "../config";
 import { Level } from "./level";
 import type { LevelDef } from "./level";
 
@@ -95,12 +96,33 @@ const w4c = corridor(3, "Ascension", 48, "The final run. Flip with everything yo
   ".P...^^^^....^^^^^^^^....^^^^....^^^^^^^^...^^^^..G",
 );
 
-export const LEVELS: LevelDef[] = [
+// ── Casual: the original 12 levels (untouched reference set). ────────────────
+const CASUAL_LEVELS: LevelDef[] = [
   w1a, w1b, w1c,
   w2a, w2b, w2c,
   w3a, w3b, w3c,
   w4a, w4b, w4c,
 ];
+
+// Normal & Nightmare clone Casual until their real sets are provided.
+const NORMAL_LEVELS: LevelDef[] = CASUAL_LEVELS; // TODO: Normal level set
+const NIGHTMARE_LEVELS: LevelDef[] = CASUAL_LEVELS; // TODO: Nightmare level set
+
+export const LEVEL_SETS: Record<Difficulty, LevelDef[]> = {
+  casual: CASUAL_LEVELS,
+  normal: NORMAL_LEVELS,
+  nightmare: NIGHTMARE_LEVELS,
+};
+
+/** Active level set (live binding). Default = Casual so tooling/scripts match. */
+export let LEVELS: LevelDef[] = CASUAL_LEVELS;
+export let LEVEL_COUNT = CASUAL_LEVELS.length;
+
+/** Swap the active level set for the chosen difficulty. */
+export function applyLevelSet(d: Difficulty): void {
+  LEVELS = LEVEL_SETS[d];
+  LEVEL_COUNT = LEVELS.length;
+}
 
 export const WORLD_NAMES = ["Dusk", "Ember", "Bloom", "Void"];
 
@@ -115,5 +137,3 @@ export function buildLevel(index: number): Level {
   const def = LEVELS[Math.max(0, Math.min(LEVELS.length - 1, index))];
   return new Level(def);
 }
-
-export const LEVEL_COUNT = LEVELS.length;

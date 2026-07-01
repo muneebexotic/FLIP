@@ -1,4 +1,4 @@
-import { PALETTES, VIEW } from "../config";
+import { ENERGY, PALETTES, VIEW } from "../config";
 import type { Palette } from "../config";
 import { playSfx, playWin } from "../core/audio";
 import { Input } from "../core/input";
@@ -187,7 +187,7 @@ export class Game {
         ctx,
         this.palette,
         {
-          energyFrac: this.player.energy / 100,
+          energyFrac: this.player.energy / ENERGY.max,
           time: this.attemptTime,
           deaths: this.deaths,
           levelLabel: `${levelLabel(this.levelIndex)} · ${this.level.def.name}`,

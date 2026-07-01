@@ -214,6 +214,104 @@ kbd {
   font-size: 12px;
 }
 
+/* ── Difficulty select ───────────────────────────────────────────── */
+.diffgrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: min(820px, 94vw);
+}
+@media (max-width: 620px) {
+  .diffgrid {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+  }
+}
+.diffcard {
+  --dc: #7cf5ff;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 24px 20px;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.diffcard:hover {
+  transform: translateY(-3px);
+  border-color: var(--dc);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+.diffcard.sel {
+  border-color: var(--dc);
+  box-shadow: 0 0 0 1px var(--dc), 0 0 30px -8px var(--dc);
+}
+.diffname {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--dc);
+  line-height: 1;
+}
+.difftag {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  opacity: 0.6;
+  margin: 8px 0 12px;
+}
+.diffblurb {
+  font-size: 13.5px;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+.diffpill {
+  --dc: #7cf5ff;
+  appearance: none;
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--dc);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.diffpill:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.diffpill .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dc);
+  box-shadow: 0 0 8px var(--dc);
+  margin-right: 4px;
+}
+.diffpill .chg {
+  opacity: 0.6;
+  text-decoration: underline;
+}
+.diffchip {
+  --dc: #7cf5ff;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dc);
+  border: 1px solid var(--dc);
+  border-radius: 999px;
+  padding: 2px 10px;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+
 /* ── Level select grid ───────────────────────────────────────────── */
 .grid {
   display: grid;

@@ -1,6 +1,9 @@
 /**
- * Central tuning file. Every "feel" number lives here so the game can be
- * dialed in live with Vite HMR. Units: pixels and seconds (world space).
+ * Central tuning. Physics/energy are grouped into per-difficulty PROFILES.
+ * `PHYS` and `ENERGY` are live bindings pointing at the active profile — every
+ * consumer reads them by property access, so `applyPhysics()` swaps the whole
+ * game's feel at once. Casual is the original, shipped tuning (untouched).
+ * Units: pixels and seconds (world space).
  */
 
 /** Virtual render resolution. The canvas letterboxes to preserve this ratio. */
@@ -14,47 +17,88 @@ export const FIXED_DT = 1 / 120;
 /** Never simulate more than this per frame (prevents spiral-of-death). */
 export const MAX_FRAME_DT = 0.25;
 
-export const PHYS = {
-  /** Horizontal top speed. */
+/** After this many deaths on a level we surface the "share your struggle" card. */
+export const SHARE_DEATH_THRESHOLD = 8;
+
+export type Difficulty = "casual" | "normal" | "nightmare";
+
+export interface PhysConfig {
+  readonly moveSpeed: number;
+  readonly groundAccel: number;
+  readonly groundFriction: number;
+  readonly airAccel: number;
+  readonly airFriction: number;
+  readonly gravity: number;
+  readonly riseGravity: number;
+  readonly maxFall: number;
+  readonly jumpSpeed: number;
+  readonly jumpCut: number;
+  readonly coyoteTime: number;
+  readonly jumpBuffer: number;
+  readonly playerW: number;
+  readonly playerH: number;
+}
+
+export interface EnergyConfig {
+  readonly max: number;
+  readonly drain: number;
+  readonly recharge: number;
+  readonly warnFrac: number;
+}
+
+// ── Casual: the original tuning. Do not change — it is the reference profile. ──
+const CASUAL_PHYS: PhysConfig = {
   moveSpeed: 260,
   groundAccel: 2600,
   groundFriction: 2800,
   airAccel: 1900,
   airFriction: 650,
-
-  /** Downward pull while falling (or rising without holding jump). */
   gravity: 2000,
-  /** Softer pull while rising and holding jump → floatier, controllable arc. */
   riseGravity: 1350,
   maxFall: 920,
-
-  /** Launch speed away from the floor. ~2.6 tiles of height under riseGravity. */
   jumpSpeed: 560,
-  /** Multiplier applied to vertical velocity when jump is released early. */
   jumpCut: 0.45,
-
-  /** Grace window to still jump just after leaving a ledge. */
   coyoteTime: 0.09,
-  /** Grace window to buffer a jump pressed just before landing. */
   jumpBuffer: 0.1,
-
-  /** Player collision box (a touch smaller than a tile for forgiving fit). */
   playerW: 26,
   playerH: 34,
-} as const;
+};
 
-export const ENERGY = {
+const CASUAL_ENERGY: EnergyConfig = {
   max: 100,
-  /** Drains per second while gravity is flipped. ~2.5s of flight per full tank. */
   drain: 40,
-  /** Refills per second while grounded in normal gravity (fast). */
   recharge: 220,
-  /** Below this fraction the meter pulses red as a warning. */
   warnFrac: 0.28,
-} as const;
+};
 
-/** After this many deaths on a level we surface the "share your struggle" card. */
-export const SHARE_DEATH_THRESHOLD = 8;
+// ── Normal & Nightmare: placeholders that CLONE Casual until real tuning is
+//    provided. The difficulty is still tagged everywhere (leaderboard, share
+//    card), so the plumbing is live; only the numbers below change later. ──
+const NORMAL_PHYS: PhysConfig = { ...CASUAL_PHYS }; // TODO: Normal physics
+const NORMAL_ENERGY: EnergyConfig = { ...CASUAL_ENERGY }; // TODO: Normal energy
+const NIGHTMARE_PHYS: PhysConfig = { ...CASUAL_PHYS }; // TODO: Nightmare physics
+const NIGHTMARE_ENERGY: EnergyConfig = { ...CASUAL_ENERGY }; // TODO: Nightmare energy
+
+export const PHYS_PROFILES: Record<Difficulty, PhysConfig> = {
+  casual: CASUAL_PHYS,
+  normal: NORMAL_PHYS,
+  nightmare: NIGHTMARE_PHYS,
+};
+export const ENERGY_PROFILES: Record<Difficulty, EnergyConfig> = {
+  casual: CASUAL_ENERGY,
+  normal: NORMAL_ENERGY,
+  nightmare: NIGHTMARE_ENERGY,
+};
+
+/** Active profiles (live bindings). Default = Casual so tooling/scripts match. */
+export let PHYS: PhysConfig = CASUAL_PHYS;
+export let ENERGY: EnergyConfig = CASUAL_ENERGY;
+
+/** Swap the active physics/energy profile. Call before starting a level. */
+export function applyPhysics(d: Difficulty): void {
+  PHYS = PHYS_PROFILES[d];
+  ENERGY = ENERGY_PROFILES[d];
+}
 
 export interface Palette {
   name: string;

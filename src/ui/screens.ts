@@ -1,6 +1,8 @@
 import { PALETTES } from "../config";
+import type { Difficulty } from "../config";
 import { isMuted, playSfx, toggleMute } from "../core/audio";
 import { load, save } from "../core/storage";
+import { DIFFICULTIES, getDifficulty, metaOf } from "../difficulty";
 import type { RunStats } from "../game/game";
 import { formatTime } from "../game/hud";
 import { LEVELS, LEVEL_COUNT, WORLD_NAMES, levelLabel } from "../game/levels";
@@ -22,14 +24,15 @@ export interface AppHooks {
   resume(): void;
   restart(): void;
   toMenu(): void;
+  chooseDifficulty(d: Difficulty): void;
 }
 
-/** Furthest unlocked level index (progressive unlock). */
+/** Furthest unlocked level index for the ACTIVE difficulty (progressive unlock). */
 export function progressMax(): number {
-  return load<number>("progress", 0);
+  return load<number>(`progress:${getDifficulty()}`, 0);
 }
 function unlock(index: number): void {
-  if (index > progressMax()) save("progress", Math.min(index, LEVEL_COUNT - 1));
+  if (index > progressMax()) save(`progress:${getDifficulty()}`, Math.min(index, LEVEL_COUNT - 1));
 }
 
 export class AppUI {
@@ -112,13 +115,44 @@ export class AppUI {
     this.showPause();
   }
 
+  // ── DIFFICULTY SELECT ─────────────────────────────────────────────────────
+  showDifficultySelect(): void {
+    const cur = getDifficulty();
+    const cards = DIFFICULTIES.map(
+      (d) => `
+      <div class="diffcard ${d.id === cur ? "sel" : ""}" data-diff="${d.id}"
+           style="--dc:${d.accent}">
+        <div class="diffname">${d.name}</div>
+        <div class="difftag">${esc(d.tagline)}</div>
+        <div class="diffblurb">${esc(d.blurb)}</div>
+      </div>`,
+    ).join("");
+    this.show(`
+      <div class="title">FLIP</div>
+      <div class="subtitle">Choose your difficulty. It sets the physics, the levels,
+        and the leaderboard you'll compete on.</div>
+      <div class="diffgrid">${cards}</div>
+    `);
+    this.overlay.querySelectorAll<HTMLElement>(".diffcard").forEach((card) => {
+      card.addEventListener("click", () => {
+        playSfx("click");
+        this.hooks.chooseDifficulty(card.dataset.diff as Difficulty);
+        this.showMenu();
+      });
+    });
+  }
+
   // ── MENU ────────────────────────────────────────────────────────────────
   showMenu(): void {
     const cont = progressMax();
+    const dm = metaOf(getDifficulty());
     this.show(`
       <div class="title">FLIP</div>
       <div class="subtitle">Gravity is a suggestion. Flip it to survive — but your energy
         drains while you're upside down. Run out mid-air and it's over.</div>
+      <button class="diffpill" data-act="difficulty" style="--dc:${dm.accent}">
+        <span class="dot"></span> ${dm.name} &nbsp;·&nbsp; <span class="chg">change</span>
+      </button>
       <div class="row">
         <button class="btn primary" data-act="play">${cont > 0 ? "Continue" : "Play"}</button>
         <button class="btn" data-act="levels">Levels</button>
@@ -136,6 +170,10 @@ export class AppUI {
       playSfx("click");
       this.showLevelSelect();
     });
+    this.overlay.querySelector('[data-act="difficulty"]')!.addEventListener("click", () => {
+      playSfx("click");
+      this.showDifficultySelect();
+    });
   }
 
   // ── LEVEL SELECT ─────────────────────────────────────────────────────────
@@ -147,7 +185,7 @@ export class AppUI {
         .filter((x) => x.def.world === wi)
         .map(({ def, i }) => {
           const locked = i > maxUnlocked;
-          const best = getBest(i);
+          const best = getBest(getDifficulty(), i);
           const done = !!best;
           const cls = `cell${locked ? " locked" : ""}${done ? " done" : ""}`;
           const sub = locked
@@ -167,7 +205,7 @@ export class AppUI {
 
     this.show(`
       <div class="panel">
-        <h2>Select a level</h2>
+        <h2>Select a level <span class="diffchip" style="--dc:${metaOf(getDifficulty()).accent}">${metaOf(getDifficulty()).name}</span></h2>
         <div class="sub">Clear a level to unlock the next.</div>
         ${worldsHtml}
         <div class="row" style="margin-top:18px">
@@ -190,8 +228,10 @@ export class AppUI {
   // ── RESULTS (win) ────────────────────────────────────────────────────────
   showResults(stats: RunStats): void {
     const i = stats.levelIndex;
+    const diff = getDifficulty();
+    const dm = metaOf(diff);
     const def = LEVELS[i];
-    const best = recordBest(i, stats.timeSec * 1000, stats.deaths);
+    const best = recordBest(diff, i, stats.timeSec * 1000, stats.deaths);
     unlock(i + 1);
     const hasNext = i + 1 < LEVEL_COUNT;
     const beatPar = stats.timeSec <= def.par;
@@ -199,7 +239,7 @@ export class AppUI {
 
     this.show(`
       <div class="panel">
-        <h2>Level Clear · ${levelLabel(i)}</h2>
+        <h2>Level Clear · ${levelLabel(i)} <span class="diffchip" style="--dc:${dm.accent}">${dm.name}</span></h2>
         <div class="sub">${WORLD_NAMES[def.world]} — ${esc(def.name)}</div>
         <div class="stats">
           <div class="stat ${beatPar ? "good" : ""}">
@@ -233,6 +273,7 @@ export class AppUI {
       const entry: ScoreEntry = {
         name: nm,
         levelIndex: i,
+        difficulty: diff,
         timeMs: Math.round(stats.timeSec * 1000),
         deaths: stats.deaths,
         createdAt: Date.now(),
@@ -275,9 +316,11 @@ export class AppUI {
   // ── LEADERBOARD ──────────────────────────────────────────────────────────
   private async showLeaderboard(levelIndex: number, sort: SortBy = "time"): Promise<void> {
     const def = LEVELS[levelIndex];
+    const diff = getDifficulty();
+    const dm = metaOf(diff);
     this.show(`
       <div class="panel">
-        <h2>Leaderboard · ${levelLabel(levelIndex)}</h2>
+        <h2>Leaderboard · ${levelLabel(levelIndex)} <span class="diffchip" style="--dc:${dm.accent}">${dm.name}</span></h2>
         <div class="sub">${WORLD_NAMES[def.world]} — ${esc(def.name)} · ${this.lb.isGlobal ? "Global" : "Local"}</div>
         <div class="tabs">
           <button class="tab ${sort === "time" ? "active" : ""}" data-sort="time">Fastest</button>
@@ -301,7 +344,7 @@ export class AppUI {
     });
 
     const list = this.overlay.querySelector("#lb-list")!;
-    const rows = await this.lb.top(levelIndex, sort, 25);
+    const rows = await this.lb.top(levelIndex, diff, sort, 25);
     const myName = getPlayerName();
     if (rows.length === 0) {
       list.innerHTML = `<div class="lb-empty">No scores yet — be the first.</div>`;
@@ -364,12 +407,15 @@ export class AppUI {
 
   private async doShare(stats: RunStats, completed: boolean): Promise<void> {
     const def = LEVELS[stats.levelIndex];
+    const dm = metaOf(getDifficulty());
     try {
       const res = await shareRun({
         levelLabel: levelLabel(stats.levelIndex),
         levelName: def.name,
         worldName: WORLD_NAMES[def.world],
         palette: PALETTES[def.world % PALETTES.length],
+        difficultyName: dm.name,
+        difficultyColor: dm.accent,
         timeSec: stats.timeSec,
         deaths: stats.deaths,
         completed,

@@ -1,5 +1,7 @@
 import "./styles.css";
 import { SHARE_DEATH_THRESHOLD, VIEW } from "./config";
+import type { Difficulty } from "./config";
+import { initDifficulty, setDifficulty } from "./difficulty";
 import type { Action } from "./core/input";
 import { GameLoop } from "./core/loop";
 import { Game } from "./game/game";
@@ -39,6 +41,7 @@ const ui = new AppUI({
   resume: () => ui.enterPlay(isTouch),
   restart: () => startLevel(game.currentLevelIndex()),
   toMenu: () => gotoMenu(),
+  chooseDifficulty: (d: Difficulty) => applyDifficulty(d),
 });
 
 function startLevel(index: number): void {
@@ -49,6 +52,13 @@ function startLevel(index: number): void {
 function gotoMenu(): void {
   game.setIdle();
   ui.showMenu();
+}
+
+function applyDifficulty(d: Difficulty): void {
+  // Swaps physics + level set, then refreshes the idle backdrop from the new set.
+  setDifficulty(d);
+  game.loadLevel(0);
+  game.setIdle();
 }
 
 game.onWin = (stats: RunStats) => ui.showResults(stats);
@@ -83,10 +93,12 @@ const loop = new GameLoop(
   },
 );
 
-// Boot: load level 0 as an ambient backdrop, then show the menu.
+// Boot: apply the persisted (or default) difficulty, show an ambient backdrop,
+// then gate on the difficulty-select screen before the game starts.
+initDifficulty();
 game.loadLevel(0);
 game.setIdle();
-ui.showMenu();
+ui.showDifficultySelect();
 loop.start();
 
 // First user gesture unlocks audio (browsers require it).

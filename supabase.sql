@@ -4,15 +4,21 @@
 create table if not exists public.scores (
   id         uuid primary key default gen_random_uuid(),
   level      int  not null check (level >= 0 and level < 100),
+  difficulty text not null default 'casual'
+             check (difficulty in ('casual', 'normal', 'nightmare')),
   name       text not null check (char_length(name) between 1 and 24),
   time_ms    int  not null check (time_ms > 0 and time_ms < 3600000),
   deaths     int  not null check (deaths >= 0 and deaths < 100000),
   created_at timestamptz not null default now()
 );
 
--- Fast per-level leaderboard queries.
-create index if not exists scores_level_time_idx  on public.scores (level, time_ms);
-create index if not exists scores_level_death_idx on public.scores (level, deaths);
+-- If upgrading an existing table, add the column:
+--   alter table public.scores add column if not exists difficulty text
+--     not null default 'casual' check (difficulty in ('casual','normal','nightmare'));
+
+-- Fast per-level, per-difficulty leaderboard queries.
+create index if not exists scores_board_time_idx  on public.scores (level, difficulty, time_ms);
+create index if not exists scores_board_death_idx on public.scores (level, difficulty, deaths);
 
 alter table public.scores enable row level security;
 
