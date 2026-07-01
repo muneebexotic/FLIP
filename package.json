@@ -1,0 +1,21 @@
+{
+  "name": "flip",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "FLIP — a browser platformer built around flipping gravity.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc --noEmit",
+    "validate": "esbuild scripts/validate-levels.ts --bundle --platform=node --format=esm | node --input-type=module",
+    "simtest": "esbuild scripts/sim-test.ts --bundle --platform=node --format=esm | node --input-type=module",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}
