@@ -1,10 +1,11 @@
 // Headless engine test — runs the REAL Player + physics against levels with a
 // scripted bot. Verifies collision, energy, win/death without a browser.
 // Run: npm run simtest
-import { FIXED_DT, TILE } from "../src/config.ts";
+import { FIXED_DT, TILE, applyPhysics } from "../src/config.ts";
+import type { Difficulty } from "../src/config.ts";
 import { Player } from "../src/game/player.ts";
 import { Level } from "../src/game/level.ts";
-import { LEVELS } from "../src/game/levels.ts";
+import { LEVELS, LEVEL_SETS, applyLevelSet } from "../src/game/levels.ts";
 import type { Action } from "../src/core/input.ts";
 
 class MockInput {
@@ -181,6 +182,7 @@ function playLevel(index: number, maxSteps = 4000): { won: boolean; deaths: numb
       }
     }
 
+    lvl.update(FIXED_DT); // tick dynamic entities (no-op for static levels)
     p.update(FIXED_DT, inp as any, lvl);
     inp.endFrame();
 
@@ -191,9 +193,11 @@ function playLevel(index: number, maxSteps = 4000): { won: boolean; deaths: numb
           `    died col ${Math.floor((p.box.x + p.box.w / 2) / TILE)} x=${p.box.x.toFixed(0)} y=${p.box.y.toFixed(0)} gdir=${p.gravDir} grounded=${p.grounded} energy=${p.energy.toFixed(0)}`,
         );
       deaths++;
+      lvl.reset();
       p.reset(lvl.spawn.x, lvl.spawn.y);
       inp.axis = 1;
       jumpHold = 0;
+      crossEndX = -1;
       if (deaths > 6) return { won: false, deaths };
     }
   }
@@ -218,14 +222,35 @@ if ((globalThis as any).DEBUG_LEVEL !== undefined) {
   (globalThis as any).DBG = false;
 }
 
-console.log("\n• Bot attempt on all levels (informational — bot ≠ perfect player)");
+console.log("\n• Casual bot attempt (informational — bot ≠ perfect player)");
 let botWins = 0;
 for (let i = 0; i < LEVELS.length; i++) {
   const r = playLevel(i);
   if (r.won) botWins++;
-  console.log(`  ${r.won ? "✓" : "·"} ${LEVELS[i].name} ${r.won ? `(deaths ${r.deaths})` : "(bot could not solve)"}`);
 }
-console.log(`  bot solved ${botWins}/${LEVELS.length}`);
+console.log(`  bot solved ${botWins}/${LEVELS.length} Casual levels`);
+
+// ── Regression + robustness: run every level of every difficulty through the
+//    REAL engine (physics + entity ticks) and require zero exceptions. The bot
+//    isn't expected to clear the hard sets — it drives the engine, not skill.
+console.log("\n• Engine handles all levels across all difficulties (no crashes)");
+let engineErrors = 0;
+for (const d of ["casual", "normal", "nightmare"] as Difficulty[]) {
+  applyPhysics(d);
+  applyLevelSet(d);
+  let wins = 0;
+  for (let i = 0; i < LEVEL_SETS[d].length; i++) {
+    try {
+      const r = playLevel(i, 2500);
+      if (r.won) wins++;
+    } catch (e) {
+      engineErrors++;
+      console.log(`  ✗ ${d} #${i} (${LEVEL_SETS[d][i].name}) threw: ${(e as Error).message}`);
+    }
+  }
+  console.log(`  ${d.padEnd(9)} ran ${LEVEL_SETS[d].length} levels (bot cleared ${wins})`);
+}
+assert(engineErrors === 0, "engine ran all levels across all difficulties without throwing");
 
 console.log(failures === 0 ? "\n✓ Engine simulation passed." : `\n✗ ${failures} assertion(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);

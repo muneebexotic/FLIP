@@ -5,6 +5,10 @@ import type { AABB } from "../core/math";
 import { isGroundedDir, moveX, moveY, touchingHazard } from "../engine/physics";
 import type { Level } from "./level";
 
+/** Shared no-alloc constants for the common (Casual, no-entity) path. */
+const NO_AABB: AABB[] = [];
+const UNIT_FIELD = { grav: 1, drain: 1 } as const;
+
 /**
  * The player. Gravity direction is a signed value: +1 pulls "down" (normal),
  * -1 pulls "up" (flipped). "The floor" is always in the +gravDir direction, so
@@ -103,16 +107,24 @@ export class Player {
       this.vy *= PHYS.jumpCut;
     }
 
-    // ---- Gravity ----
+    // ---- Dynamic entities (empty/no-op for Casual levels) ----
+    const solids = level.hasEntities ? level.dynamicSolids() : NO_AABB;
+    const hazards = level.saws.length ? level.dynamicHazards() : NO_AABB;
+
+    // Ride moving platforms: if we were resting on one, move with it first.
+    if (level.movers.length) this.rideMovers(level);
+
+    // ---- Gravity (scaled inside gravity zones) ----
+    const field = level.zones.length ? level.fieldAt(this.cx(), this.cy()) : UNIT_FIELD;
     const risingNow = this.vy * this.gravDir < 0;
-    const g = risingNow && input.held("jump") ? PHYS.riseGravity : PHYS.gravity;
+    const g = (risingNow && input.held("jump") ? PHYS.riseGravity : PHYS.gravity) * field.grav;
     this.vy += this.gravDir * g * dt;
     // Clamp fall speed (in the +gravDir direction).
     if (this.vy * this.gravDir > PHYS.maxFall) this.vy = this.gravDir * PHYS.maxFall;
 
-    // ---- Integrate + collide ----
-    moveX(this.box, this.vx * dt, level);
-    const vhit = moveY(this.box, this.vy * dt, level);
+    // ---- Integrate + collide (tiles + dynamic solids) ----
+    moveX(this.box, this.vx * dt, level, solids);
+    const vhit = moveY(this.box, this.vy * dt, level, solids);
     const wasGrounded = this.grounded;
     // Landed if we hit a surface in the gravity direction; bonked if opposite.
     const hitFloor = this.gravDir > 0 ? vhit.bottom : vhit.top;
@@ -126,17 +138,20 @@ export class Player {
         this.ev.landed = true;
       }
     } else {
-      this.grounded = isGroundedDir(this.box, level, this.gravDir);
+      this.grounded = isGroundedDir(this.box, level, this.gravDir, solids);
       if (this.grounded) this.coyote = PHYS.coyoteTime;
     }
     if (hitCeil) this.vy = 0;
 
-    // ---- Energy (the core mechanic) ----
+    // Standing on a disappearing platform starts its countdown.
+    if (this.grounded && level.fallers.length) this.armFallers(level);
+
+    // ---- Energy (the core mechanic; drain amplified inside gravity zones) ----
     // Flipping burns fuel the entire time gravity is inverted — ceilings are
     // NOT a refuel (keeps every flip a visible countdown). Refuel only when
     // grounded in normal gravity. Empty while flipped == death.
     if (this.gravDir < 0) {
-      this.energy -= ENERGY.drain * dt;
+      this.energy -= ENERGY.drain * field.drain * dt;
       if (this.energy <= 0) {
         this.energy = 0;
         this.die();
@@ -150,7 +165,7 @@ export class Player {
     this.squash = approach(this.squash, 1, 4 * dt);
 
     // ---- Lethal contact / out of bounds ----
-    if (touchingHazard(this.box, level)) {
+    if (touchingHazard(this.box, level, hazards)) {
       this.die();
       return;
     }
@@ -175,6 +190,38 @@ export class Player {
     ) {
       this.won = true;
       this.ev.won = true;
+    }
+  }
+
+  /** If we were resting on a moving platform, translate with it (carry/push). */
+  private rideMovers(level: Level): void {
+    for (const m of level.movers) {
+      if (m.dx === 0 && m.dy === 0) continue;
+      // The platform's position BEFORE it moved this step.
+      const px = m.box.x - m.dx;
+      const py = m.box.y - m.dy;
+      const horiz = this.box.x < px + m.box.w && this.box.x + this.box.w > px;
+      if (!horiz) continue;
+      const onTop = this.gravDir > 0 && Math.abs(py - (this.box.y + this.box.h)) <= 3;
+      const onBottom = this.gravDir < 0 && Math.abs(py + m.box.h - this.box.y) <= 3;
+      if (onTop || onBottom) {
+        this.box.x += m.dx;
+        this.box.y += m.dy;
+        return; // ride only the first platform found
+      }
+    }
+  }
+
+  /** Arm any disappearing platform we're currently standing on. */
+  private armFallers(level: Level): void {
+    for (const f of level.fallers) {
+      if (!f.solid) continue;
+      const b = f.box;
+      const horiz = this.box.x < b.x + b.w && this.box.x + this.box.w > b.x;
+      if (!horiz) continue;
+      const onTop = this.gravDir > 0 && Math.abs(b.y - (this.box.y + this.box.h)) <= 3;
+      const onBottom = this.gravDir < 0 && Math.abs(b.y + b.h - this.box.y) <= 3;
+      if (onTop || onBottom) f.arm();
     }
   }
 

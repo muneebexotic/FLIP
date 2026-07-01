@@ -1,6 +1,7 @@
 import type { Difficulty } from "../config";
 import { Level } from "./level";
 import type { LevelDef } from "./level";
+import type { MoverDef, SawDef, ZoneDef } from "./obstacles";
 
 /**
  * Level authoring. Every level is a "corridor": a solid ceiling row on top, a
@@ -31,6 +32,46 @@ function corridor(
   );
   return { world, name, par, hint, rows };
 }
+
+/**
+ * Extended corridor for Normal/Nightmare. floorRow legend adds:
+ *   '_'  pit — no floor below, lethal fall
+ *   'D'  disappearing platform at floor level
+ * Moving platforms/hazards/gravity zones are supplied via `opts` (tile coords).
+ * Row indices: ceiling content = 1, floor content (spikes) = interior+2,
+ * floor surface = interior+3. The helpers below reference those.
+ */
+interface XOpts {
+  movers?: MoverDef[];
+  saws?: SawDef[];
+  zones?: ZoneDef[];
+}
+function corridorX(
+  world: number,
+  name: string,
+  par: number,
+  hint: string | undefined,
+  w: number,
+  interior: number,
+  ceilRow: string,
+  floorRow: string,
+  opts: XOpts = {},
+): LevelDef {
+  const fc = [...R(floorRow, w)];
+  const content = fc.map((c) => (c === "^" || c === "P" || c === "G" ? c : ".")).join("");
+  const base = fc.map((c) => (c === "_" ? "." : c === "D" ? "D" : "#")).join("");
+  const rows = [S(w), R(ceilRow, w), ...Array(interior).fill(R("", w)), content, base];
+  return { world, name, par, hint, rows, movers: opts.movers, saws: opts.saws, zones: opts.zones };
+}
+
+// Entity placement helpers (keep tile math in one place).
+const ferry = (tx: number, w: number, range: number, speed: number, i: number, phase = 0): MoverDef =>
+  ({ tx, ty: i + 3, w, h: 1, axis: "h", range, speed, phase });
+const floorSaw = (tx: number, range: number, speed: number, i: number, phase = 0): SawDef =>
+  ({ tx, ty: i + 2, axis: "h", range, speed, phase });
+const ceilSaw = (tx: number, range: number, speed: number, phase = 0): SawDef =>
+  ({ tx, ty: 1, axis: "h", range, speed, phase });
+const zone = (tx: number, w: number, i: number): ZoneDef => ({ tx, ty: 1, w, h: i + 2 });
 
 // ─── World 1 · Dusk — learn to move, jump, and flip ─────────────────────────
 const w1a = corridor(0, "Drop In", 7, "MOVE: A / D or ← →   •   JUMP: Space / W", 30, 4,
@@ -104,9 +145,157 @@ const CASUAL_LEVELS: LevelDef[] = [
   w4a, w4b, w4c,
 ];
 
-// Normal & Nightmare clone Casual until their real sets are provided.
-const NORMAL_LEVELS: LevelDef[] = CASUAL_LEVELS; // TODO: Normal level set
-const NIGHTMARE_LEVELS: LevelDef[] = CASUAL_LEVELS; // TODO: Nightmare level set
+// ═══ Normal — moving platforms, tighter gaps, energy that bites (~1.34s/flip) ═
+// Flip crossings ≤ 5 tiles; wide gaps are pits crossed by moving platforms.
+
+// World 1 · Dusk (no movers yet — tighten the fundamentals)
+const nm1 = corridorX(0, "Slip", 10, "Tighter than you're used to. Time the jumps.", 30, 4,
+  "",
+  ".P....^^....^^^^....^^....G",
+);
+const nm2 = corridorX(0, "Pinch", 15, "Ceiling teeth force you down between crossings", 40, 4,
+  "............^^^.......^^^",
+  ".P.....^^^^......^^^^......^^^^..G",
+);
+const nm3 = corridorX(0, "Thread", 18, "Flip early — the room is short", 40, 3,
+  "..........^^^.....^^^",
+  ".P....^^^.....^^^.....^^^....G",
+);
+
+// World 2 · Ember (moving platforms)
+const nm4 = corridorX(1, "Ferry", 16, "Ride the platform across — mistime it and you fall", 24, 4,
+  "",
+  ".P.....______....^^..G",
+  { movers: [ferry(7, 3, 3, 2.5, 4)] },
+);
+const nm5 = corridorX(1, "Tides", 22, "Two ferries, out of sync", 40, 4,
+  "",
+  ".P....____....^^....____....G",
+  { movers: [ferry(6, 2, 2, 2.6, 4), ferry(20, 2, 2, 2.6, 4, 0.5)] },
+);
+const nm6 = corridorX(1, "Relay", 24, "Platform, then a flip — chain them", 40, 4,
+  "",
+  ".P....____....^^^^....____...G",
+  { movers: [ferry(6, 2, 2, 2.8, 4), ferry(22, 2, 2, 2.8, 4)] },
+);
+
+// World 3 · Bloom (movers + tighter routing)
+const nm7 = corridorX(2, "Lull", 26, "Keep your energy for the flips that matter", 40, 4,
+  "",
+  ".P....____...^^^....____...^^.G",
+  { movers: [ferry(6, 2, 2, 3, 4), ferry(20, 2, 2, 3, 4)] },
+);
+const nm8 = corridorX(2, "Cascade", 30, "Three ferries — read the rhythm", 44, 4,
+  "",
+  ".P...____...____...____...G",
+  { movers: [ferry(5, 2, 2, 3, 4), ferry(12, 2, 2, 3, 4, 0.33), ferry(19, 2, 2, 3, 4, 0.66)] },
+);
+const nm9 = corridorX(2, "Vault", 32, "Short room, long spikes — commit", 40, 3,
+  "...........^^^",
+  ".P...^^^..____..^^^..G",
+  { movers: [ferry(10, 2, 2, 3, 3)] },
+);
+
+// World 4 · Void (everything Normal has)
+const nm10 = corridorX(3, "Onslaught", 40, "No more warm-ups", 48, 4,
+  "..........^^^...........^^^",
+  ".P....^^^^...____...^^^^...____..^^^.G",
+  { movers: [ferry(13, 2, 2, 3, 4), ferry(27, 2, 2, 3, 4)] },
+);
+const nm11 = corridorX(3, "Torrent", 44, "Tight room, no rest", 48, 3,
+  ".........^^.....^^.....^^",
+  ".P...^^^....^^^....^^^....^^^...G",
+);
+const nm12 = corridorX(3, "Reckoning", 52, "Everything you've learned, back to back", 52, 4,
+  ".............^^^.............^^^",
+  ".P....^^^^...____...^^^^...____...^^^^..G",
+  { movers: [ferry(13, 2, 2, 3, 4), ferry(27, 2, 2, 3, 4, 0.5)] },
+);
+
+const NORMAL_LEVELS: LevelDef[] = [
+  nm1, nm2, nm3,
+  nm4, nm5, nm6,
+  nm7, nm8, nm9,
+  nm10, nm11, nm12,
+];
+
+// ═══ Nightmare — moving hazards, gravity zones, no mercy (~0.76s/flip) ════════
+// Flip crossings ≤ 2 tiles; near-zero energy before floor contact in W3/W4.
+
+// World 1 · Dusk (movers from the start)
+const ng1 = corridorX(0, "Baptism", 12, "Nothing is safe here. Not even level one.", 30, 4,
+  "",
+  ".P...^^..____..^^..G",
+  { movers: [ferry(9, 2, 2, 3, 4)] },
+);
+const ng2 = corridorX(0, "Freefall", 16, "Short flips only — you have no fuel to waste", 40, 4,
+  "...........^^........^^",
+  ".P...^^..^^..____..^^..^^..G",
+  { movers: [ferry(13, 2, 2, 3.2, 4)] },
+);
+const ng3 = corridorX(0, "Sever", 20, "Flip and unflip in the same breath", 40, 3,
+  ".......^^...^^...^^",
+  ".P...^^...^^...^^...^^...G",
+);
+
+// World 2 · Ember (+ disappearing platforms)
+const ng4 = corridorX(1, "Crumble", 20, "Those platforms won't wait. Keep moving.", 34, 4,
+  "",
+  ".P....DDDDDD....^^..G",
+);
+const ng5 = corridorX(1, "Lapse", 26, "Cross before it's gone", 42, 4,
+  ".............^^",
+  ".P...DDDD..^^..____..DDDD..G",
+  { movers: [ferry(15, 2, 2, 3, 4)] },
+);
+const ng6 = corridorX(1, "Fracture", 30, "Disappearing steps over the void", 44, 3,
+  "...........^^......^^",
+  ".P...DD..^^..DD..^^..DD..G",
+);
+
+// World 3 · Bloom (+ moving hazards + gravity zones)
+const ng7 = corridorX(2, "Sawmill", 34, "The spikes move now. Watch them.", 42, 4,
+  "",
+  ".P.....^^....^^....^^....G",
+  { saws: [floorSaw(10, 3, 3, 4), floorSaw(22, 3, 3, 4, 0.5)] },
+);
+const ng8 = corridorX(2, "Heavy", 38, "Inside the field, everything drops — and drains — faster", 42, 4,
+  ".............^^",
+  ".P....^^...____...^^...^^..G",
+  { movers: [ferry(11, 2, 2, 3, 4)], zones: [zone(18, 6, 4)] },
+);
+const ng9 = corridorX(2, "Grind", 42, "Moving teeth and a heavy field. Thread it.", 44, 3,
+  "",
+  ".P....^^...^^...^^...^^...G",
+  { saws: [ceilSaw(9, 4, 3.5), floorSaw(20, 4, 3.5, 3)], zones: [zone(14, 5, 3)] },
+);
+
+// World 4 · Void (everything, tight 3-tile corridors)
+const ng10 = corridorX(3, "Vice", 48, "Ceiling and floor, three tiles apart. Flip fast.", 48, 3,
+  ".......^^...^^...^^...^^...^^",
+  ".P...^^...^^...^^...^^...^^...G",
+);
+const ng11 = corridorX(3, "Collapse", 54, "Disappearing steps, moving spikes, a heavy field", 50, 3,
+  "..............^^",
+  ".P...DD..^^..DD..____..DD..^^.G",
+  { movers: [ferry(17, 2, 2, 3.2, 3)], saws: [ceilSaw(6, 3, 3)], zones: [zone(20, 5, 3)] },
+);
+const ng12 = corridorX(3, "Apotheosis", 70, "Every mechanic. One path. No mercy.", 60, 3,
+  ".........^^.......^^..........^^",
+  ".P..^^..DDDD..^^..____..^^..DDDD..^^..G",
+  {
+    movers: [ferry(18, 2, 2, 3.4, 3)],
+    saws: [floorSaw(6, 3, 4, 3), ceilSaw(28, 4, 4)],
+    zones: [zone(22, 6, 3)],
+  },
+);
+
+const NIGHTMARE_LEVELS: LevelDef[] = [
+  ng1, ng2, ng3,
+  ng4, ng5, ng6,
+  ng7, ng8, ng9,
+  ng10, ng11, ng12,
+];
 
 export const LEVEL_SETS: Record<Difficulty, LevelDef[]> = {
   casual: CASUAL_LEVELS,

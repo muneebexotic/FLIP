@@ -71,13 +71,53 @@ const CASUAL_ENERGY: EnergyConfig = {
   warnFrac: 0.28,
 };
 
-// ── Normal & Nightmare: placeholders that CLONE Casual until real tuning is
-//    provided. The difficulty is still tagged everywhere (leaderboard, share
-//    card), so the plumbing is live; only the numbers below change later. ──
-const NORMAL_PHYS: PhysConfig = { ...CASUAL_PHYS }; // TODO: Normal physics
-const NORMAL_ENERGY: EnergyConfig = { ...CASUAL_ENERGY }; // TODO: Normal energy
-const NIGHTMARE_PHYS: PhysConfig = { ...CASUAL_PHYS }; // TODO: Nightmare physics
-const NIGHTMARE_ENERGY: EnergyConfig = { ...CASUAL_ENERGY }; // TODO: Nightmare energy
+// ── Normal: snappier, heavier gravity; less air time; energy actually bites. ──
+const NORMAL_PHYS: PhysConfig = {
+  moveSpeed: 260,
+  groundAccel: 2600,
+  groundFriction: 2800,
+  airAccel: 1900,
+  airFriction: 650,
+  gravity: 2600,
+  riseGravity: 1700,
+  maxFall: 1100,
+  jumpSpeed: 540,
+  jumpCut: 0.38,
+  coyoteTime: 0.06,
+  jumpBuffer: 0.08,
+  playerW: 26,
+  playerH: 34,
+};
+const NORMAL_ENERGY: EnergyConfig = {
+  max: 75,
+  drain: 56,
+  recharge: 200,
+  warnFrac: 0.3,
+};
+
+// ── Nightmare: brutal gravity, minimal grace windows, a sliver of energy. ──
+const NIGHTMARE_PHYS: PhysConfig = {
+  moveSpeed: 260,
+  groundAccel: 2600,
+  groundFriction: 2800,
+  airAccel: 1900,
+  airFriction: 650,
+  gravity: 3200,
+  riseGravity: 2100,
+  maxFall: 1300,
+  jumpSpeed: 510,
+  jumpCut: 0.3,
+  coyoteTime: 0.04,
+  jumpBuffer: 0.06,
+  playerW: 26,
+  playerH: 34,
+};
+const NIGHTMARE_ENERGY: EnergyConfig = {
+  max: 55,
+  drain: 72,
+  recharge: 180,
+  warnFrac: 0.35,
+};
 
 export const PHYS_PROFILES: Record<Difficulty, PhysConfig> = {
   casual: CASUAL_PHYS,

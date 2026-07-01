@@ -40,12 +40,21 @@ rise/fall gravity, squash-and-stretch, screen shake, particle bursts, and a sati
 ## Difficulty
 
 A difficulty-select screen (**Casual / Normal / Nightmare**) gates the game at boot. Each
-difficulty swaps *both* a physics/energy profile ([`src/config.ts`](src/config.ts)) and a level
-set ([`src/game/levels.ts`](src/game/levels.ts)), coordinated by
+difficulty swaps *both* a physics/energy profile ([`src/config.ts`](src/config.ts)) and an
+independent 12-level set ([`src/game/levels.ts`](src/game/levels.ts)), coordinated by
 [`src/difficulty.ts`](src/difficulty.ts). The choice is persisted, tagged on every leaderboard
-entry (boards are per-difficulty), and shown prominently on the share card. Casual is the
-reference tuning; Normal and Nightmare are wired up and currently clone Casual pending their own
-physics + levels (marked `// TODO` in config/levels).
+entry (boards are per-difficulty), and shown prominently on the share card.
+
+- **Casual** — the reference tuning and original 12 levels (frozen).
+- **Normal** — heavier gravity, tighter grace windows, thinner energy; introduces **moving
+  platforms** from World 2.
+- **Nightmare** — brutal gravity and a sliver of energy; adds **disappearing platforms**,
+  **moving hazards**, and **gravity zones** (regions that multiply gravity ×1.6 and energy
+  drain ×1.8).
+
+The four obstacle types are first-class engine entities ([`src/game/obstacles.ts`](src/game/obstacles.ts))
+with their own update/collision/render — the player physically rides moving platforms. Every
+level in all three sets passes `npm run validate` (structural + per-difficulty energy budget).
 
 ## Project layout
 

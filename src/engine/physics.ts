@@ -1,4 +1,5 @@
 import { TILE } from "../config";
+import { aabbOverlap } from "../core/math";
 import type { AABB } from "../core/math";
 import { Level } from "../game/level";
 
@@ -16,11 +17,16 @@ function tileSpan(lo: number, hiInclusive: number): [number, number] {
 }
 
 /**
- * Move an AABB horizontally by dx, resolving against solid tiles. Per physics
- * step the delta is far smaller than a tile, so simple snap-out resolution is
- * tunnel-proof. Mutates `box.x`.
+ * Move an AABB horizontally by dx, resolving against solid tiles AND dynamic
+ * solid AABBs (moving/disappearing platforms). Per physics step the delta is
+ * far smaller than a tile, so simple snap-out resolution is tunnel-proof.
  */
-export function moveX(box: AABB, dx: number, level: Level): { left: boolean; right: boolean } {
+export function moveX(
+  box: AABB,
+  dx: number,
+  level: Level,
+  solids: AABB[] = [],
+): { left: boolean; right: boolean } {
   box.x += dx;
   let left = false;
   let right = false;
@@ -39,11 +45,26 @@ export function moveX(box: AABB, dx: number, level: Level): { left: boolean; rig
       }
     }
   }
+  for (const s of solids) {
+    if (!aabbOverlap(box, s)) continue;
+    if (dx > 0) {
+      box.x = s.x - box.w;
+      right = true;
+    } else if (dx < 0) {
+      box.x = s.x + s.w;
+      left = true;
+    }
+  }
   return { left, right };
 }
 
-/** Move an AABB vertically by dy, resolving against solid tiles. Mutates `box.y`. */
-export function moveY(box: AABB, dy: number, level: Level): { top: boolean; bottom: boolean } {
+/** Move an AABB vertically by dy, resolving against tiles + dynamic solids. */
+export function moveY(
+  box: AABB,
+  dy: number,
+  level: Level,
+  solids: AABB[] = [],
+): { top: boolean; bottom: boolean } {
   box.y += dy;
   let top = false;
   let bottom = false;
@@ -62,11 +83,21 @@ export function moveY(box: AABB, dy: number, level: Level): { top: boolean; bott
       }
     }
   }
+  for (const s of solids) {
+    if (!aabbOverlap(box, s)) continue;
+    if (dy > 0) {
+      box.y = s.y - box.h;
+      bottom = true;
+    } else if (dy < 0) {
+      box.y = s.y + s.h;
+      top = true;
+    }
+  }
   return { top, bottom };
 }
 
-/** True if the box currently overlaps any hazard tile. */
-export function touchingHazard(box: AABB, level: Level): boolean {
+/** True if the box overlaps any static hazard tile or dynamic hazard box. */
+export function touchingHazard(box: AABB, level: Level, hazards: AABB[] = []): boolean {
   const [tx0, tx1] = tileSpan(box.x, box.x + box.w);
   const [ty0, ty1] = tileSpan(box.y, box.y + box.h);
   for (let ty = ty0; ty <= ty1; ty++) {
@@ -86,17 +117,31 @@ export function touchingHazard(box: AABB, level: Level): boolean {
       }
     }
   }
+  for (const h of hazards) {
+    if (aabbOverlap(box, h)) return true;
+  }
   return false;
 }
 
-/** Is a solid tile immediately in the given vertical direction (dir=+1 below, -1 above)? */
-export function isGroundedDir(box: AABB, level: Level, dir: number): boolean {
+/** Is a solid (tile or dynamic) immediately in the vertical direction (dir=+1 below, -1 above)? */
+export function isGroundedDir(
+  box: AABB,
+  level: Level,
+  dir: number,
+  solids: AABB[] = [],
+): boolean {
   const probe: AABB = { x: box.x, y: box.y + dir * 2, w: box.w, h: box.h };
   const [tx0, tx1] = tileSpan(probe.x, probe.x + probe.w);
   const edgeY = dir > 0 ? probe.y + probe.h : probe.y;
   const ty = Math.floor((edgeY + (dir > 0 ? -EPS : EPS)) / TILE);
   for (let tx = tx0; tx <= tx1; tx++) {
     if (level.isSolid(tx, ty)) return true;
+  }
+  for (const s of solids) {
+    const horiz = box.x < s.x + s.w && box.x + box.w > s.x;
+    if (!horiz) continue;
+    if (dir > 0 && Math.abs(s.y - (box.y + box.h)) <= 2) return true;
+    if (dir < 0 && Math.abs(s.y + s.h - box.y) <= 2) return true;
   }
   return false;
 }

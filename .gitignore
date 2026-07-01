@@ -10,5 +10,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 scripts/smoke.png
+scripts/shot-*.png
+scripts/_*.mjs
 test-results
 

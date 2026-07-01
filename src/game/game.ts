@@ -53,6 +53,7 @@ export class Game {
 
   /** Reset player to spawn. `fresh` also snaps the camera (level (re)start). */
   private respawn(fresh: boolean): void {
+    this.level.reset(); // return moving/disappearing/hazard entities to start
     this.player.reset(this.level.spawn.x, this.level.spawn.y);
     this.attemptTime = 0;
     this.mode = "play";
@@ -89,6 +90,7 @@ export class Game {
     }
 
     this.attemptTime += dt;
+    this.level.update(dt); // advance entities before the player rides them
     this.player.update(dt, this.input, this.level);
     this.particles.update(dt);
     this.camera.follow(this.player.cx(), this.player.cy(), dt);
@@ -175,6 +177,16 @@ export class Game {
     const { ox, oy } = this.camera.renderOffset(alpha);
     this.renderer.drawBackground(ctx, this.palette, ox, oy);
     this.renderer.drawLevel(ctx, this.level, this.palette, ox, oy, this.clock);
+
+    // Dynamic entities (self-rendering): zones tint behind, then solids/hazards.
+    if (this.level.hasEntities) {
+      const pal = this.palette;
+      const t = this.clock;
+      for (const z of this.level.zones) z.render(ctx, ox, oy, pal, t);
+      for (const m of this.level.movers) m.render(ctx, ox, oy, pal);
+      for (const f of this.level.fallers) f.render(ctx, ox, oy, pal, t);
+      for (const s of this.level.saws) s.render(ctx, ox, oy, pal, t);
+    }
 
     if (this.mode !== "dying") {
       this.renderer.drawPlayer(ctx, this.player, this.palette, ox, oy, alpha, -1);
