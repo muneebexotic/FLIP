@@ -43,8 +43,10 @@ export class Hunter {
   private edgeY = 0; // smoothed eye height at the leading edge
 
   // ── Tuning (starting points — playtest, then tweak) ──
-  private readonly revealDelay = 1.5; // s of calm before the dark wakes
-  private readonly baseSpeed = 202; // px/s — just under a sustainable pace
+  // revealDelay/baseSpeed are set per-spawn: an unannounced *invasion* gets a
+  // longer calm and a slightly slower wall, since it catches you off-guard.
+  private revealDelay = 1.5; // s of calm before the dark wakes
+  private baseSpeed = 202; // px/s — just under a sustainable pace
   private readonly accel = 10; // px/s² — it closes in over time
   private readonly surgeBoost = 0.5; // +50% wall speed at full surge
   private readonly surgeDecay = 1.6; // surge falls to ~0 over ~0.6 s
@@ -52,7 +54,11 @@ export class Hunter {
   private readonly dreadRange = 480; // gap over which dread ramps 1 → 0
   private readonly killMargin = 13; // player half-width: left edge reaching darkX = death
 
-  reset(cx: number, cy: number): void {
+  reset(cx: number, cy: number, gentle = false): void {
+    // An invasion (gentle) gives the surprised player a longer breath and a
+    // slightly slower wall; a deliberate Hunted run uses the sharper tuning.
+    this.revealDelay = gentle ? 2.2 : 1.5;
+    this.baseSpeed = gentle ? 178 : 202;
     this.darkX = this.prevDarkX = cx - this.spawnLead;
     this.px = this.lastPx = cx;
     this.py = this.edgeY = cy;

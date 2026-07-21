@@ -1,6 +1,7 @@
 import { ENERGY, PALETTES, VIEW } from "../config";
 import type { Palette } from "../config";
 import { playDarkExhale, playDarkReveal, playHunterCaught, playSfx, playWin } from "../core/audio";
+import { getDifficulty } from "../difficulty";
 import { Input } from "../core/input";
 import { Camera } from "../engine/camera";
 import { Particles } from "../engine/particles";
@@ -18,6 +19,9 @@ export interface RunStats {
 }
 
 type Mode = "idle" | "play" | "dying" | "won";
+
+/** Odds an ordinary (non-Hunted) level entry is secretly invaded by the dark. */
+const INVASION_CHANCE = 0.14;
 
 export class Game {
   readonly input = new Input();
@@ -43,6 +47,14 @@ export class Game {
   private dread = 0; // 0..1 proximity of the Hunter, drives dread effects
   private beatTimer = 0;
 
+  // ── Invasion: the dark can rarely, unannounced, turn on during an ordinary
+  //    (non-Hunted) run — "one game that can turn on you". ──
+  private invasionArmed = false; // this level entry will spring an invasion
+  private invading = false; // an invasion is live this attempt
+  private invasionCountdown = 0; // seconds of normal play before it strikes
+  private invasionCooldown = 0; // level entries to wait before another may arm
+  private forceInvasions = false; // dev/playtest (?invade): invade every eligible level
+
   /** Set by the host to receive completion + death events. */
   onWin: (stats: RunStats) => void = () => {};
   onDeath: (deaths: number) => void = () => {};
@@ -55,12 +67,43 @@ export class Game {
     return this.hunted;
   }
 
+  /** True when the dark is present — deliberate Hunted OR an active invasion. */
+  private huntActive(): boolean {
+    return this.hunted || this.invading;
+  }
+
+  /** Dev/playtest aid (wired to ?invade): force an invasion every eligible level. */
+  setInvasionTesting(on: boolean): void {
+    this.forceInvasions = on;
+  }
+
+  /** Decide, once per level entry, whether the dark will invade this ordinary run. */
+  private rollInvasion(index: number): void {
+    this.invasionArmed = false;
+    if (this.hunted) return; // deliberate Hunted already — nothing to arm
+    if (this.forceInvasions) {
+      this.invasionArmed = true;
+      return;
+    }
+    if (this.invasionCooldown > 0) {
+      this.invasionCooldown--;
+      return;
+    }
+    // Keep Casual (the practice on-ramp) predictable; grace the first two levels.
+    if (getDifficulty() === "casual" || index <= 1) return;
+    if (Math.random() < INVASION_CHANCE) {
+      this.invasionArmed = true;
+      this.invasionCooldown = 3; // no back-to-back invasions
+    }
+  }
+
   loadLevel(index: number): void {
     this.levelIndex = index;
     this.level = buildLevel(index);
     this.palette = PALETTES[this.level.def.world % PALETTES.length];
     this.camera.setBounds(this.level.widthPx, this.level.heightPx);
     this.deaths = 0;
+    this.rollInvasion(index);
     this.respawn(true);
     this.mode = "play";
     this.hintTimer = this.level.def.hint ? 3.2 : 0;
@@ -74,7 +117,13 @@ export class Game {
     this.mode = "play";
     this.dread = 0;
     this.beatTimer = 0;
-    if (this.hunted) this.hunter.reset(this.player.cx(), this.player.cy());
+    this.invading = false;
+    if (this.hunted) {
+      this.hunter.reset(this.player.cx(), this.player.cy());
+    } else if (this.invasionArmed) {
+      // Strike a few seconds in, so it reads as the game turning on you.
+      this.invasionCountdown = 3 + Math.random() * 3;
+    }
     if (fresh) this.particles.clear();
     this.camera.snapTo(this.player.cx(), this.player.cy());
   }
@@ -113,9 +162,20 @@ export class Game {
     this.particles.update(dt);
     this.camera.follow(this.player.cx(), this.player.cy(), dt);
 
-    if (this.hunted) this.updateHunter(dt);
+    if (this.huntActive()) this.updateHunter(dt);
+    else if (this.invasionArmed) this.tickInvasion(dt);
 
     this.consumePlayerEvents();
+  }
+
+  /** Count down to an unannounced strike, then wake the dark where you stand. */
+  private tickInvasion(dt: number): void {
+    if (!this.player.alive || this.player.won) return;
+    this.invasionCountdown -= dt;
+    if (this.invasionCountdown <= 0) {
+      this.invading = true;
+      this.hunter.reset(this.player.cx(), this.player.cy(), true /* gentle */);
+    }
   }
 
   private updateHunter(dt: number): void {
@@ -220,7 +280,7 @@ export class Game {
     if (this.mode !== "play") return;
     this.mode = "won";
     playWin();
-    if (this.hunted) playDarkExhale(); // the dark recedes — tension releases
+    if (this.huntActive()) playDarkExhale(); // the dark recedes — tension releases
     this.camera.shake(4, 0.3);
     this.particles.burst(this.level.goal.x + 20, this.level.goal.y + 20, 40, this.palette.accent, {
       speed: 320,
@@ -251,8 +311,8 @@ export class Game {
       for (const s of this.level.saws) s.render(ctx, ox, oy, pal, t);
     }
 
-    // The Hunter stalks just behind the player.
-    if (this.hunted && (this.mode === "play" || this.mode === "dying")) {
+    // The dark eats the level from the left, just behind the player.
+    if (this.huntActive() && (this.mode === "play" || this.mode === "dying")) {
       this.hunter.render(ctx, ox, oy, this.palette, alpha, this.clock);
     }
 
@@ -263,7 +323,7 @@ export class Game {
 
     // Dread — darkness bleeds in from the LEFT (where the dark lives), reddening
     // the whole frame only once it's genuinely close.
-    if (this.hunted && this.dread > 0.02 && (this.mode === "play" || this.mode === "dying")) {
+    if (this.huntActive() && this.dread > 0.02 && (this.mode === "play" || this.mode === "dying")) {
       const d = this.dread;
       const side = ctx.createLinearGradient(0, 0, VIEW.w * 0.62, 0);
       side.addColorStop(0, `rgba(4,0,8,${Math.min(0.9, 0.3 + d * 0.6)})`);

@@ -41,6 +41,12 @@ resize();
 // ── Wire game + UI ───────────────────────────────────────────────────────────
 const game = new Game();
 
+// Dev/playtest: ?invade forces the (normally rare, unannounced) invasion — the
+// dark turning on you mid-run — on every eligible level, so it can be tried on
+// demand. Off by default; production stays rare.
+const invadeParam = new URLSearchParams(location.search).get("invade");
+game.setInvasionTesting(invadeParam !== null && invadeParam !== "0");
+
 const ui = new AppUI({
   playLevel: (index: number) => startLevel(index),
   resume: () => ui.enterPlay(isTouch),

@@ -19,8 +19,9 @@
 - **The owner cannot pay for AI APIs.** Use **offline generation** (you, the model, generate
   content now and commit it) or **free tiers** (Groq / Google Gemini). The validator is the quality
   gate, so model strength barely matters.
-- **Kick off epics in the order in section 6.** Epic A (Hunter v2 — "The Encroaching Dark") is the
-  agreed next build. Do ONE epic at a time; verify; commit; push (auto-deploys).
+- **Kick off epics in the order in section 6.** Epic A (Hunter v2 — "The Encroaching Dark") is
+  **DONE (2026-07-21)**; **Epic B (feel/visuals/speed pass + finish the `?bloom` prototype) is next.**
+  Do ONE epic at a time; verify; commit; push (auto-deploys).
 
 ---
 
@@ -128,7 +129,21 @@ sharecard), `src/main.ts` (app shell), `scripts/*` (validate/sim/smoke).
 
 ## 6. Roadmap — epics to kick off ONE AT A TIME (in this order)
 
-### ⭐ Epic A — Hunter v2: "The Encroaching Dark" (NEXT — agreed with owner)
+### ✅ Epic A — Hunter v2: "The Encroaching Dark" (DONE 2026-07-21)
+
+**Shipped.** Rebuilt [`src/game/hunter.ts`](../src/game/hunter.ts) as an accelerating wall of black
+(`darkX`, monotonic) that eats the level from the left; a reactive **surge** speeds it up on
+mistakes (hesitation/backtracking) while a **clean flip clears surge** = breathing room; ~1.5 s calm
+**reveal** (low drone, no monster on screen), two tracking eyes at the leading edge + a maw that
+lunges only on a near-catch; gap-based dread → **left-edge** vignette + quickening heartbeat; new
+`playDarkReveal`/`playDarkExhale` SFX. Contact death when the player's left edge reaches `darkX`.
+**Owner decision resolved (see below): invasions of ordinary runs are BUILT** — rarely and
+unannounced the dark turns on mid-run on Normal/Nightmare (`INVASION_CHANCE`, `?invade` forces it
+for playtesting). Verified green (typecheck/validate/simtest — Casual still 7/12 — /build + browser).
+**Tuning knobs to playtest** live as fields in `hunter.ts` (`baseSpeed` 202/178-gentle, `accel` 10,
+`surgeBoost` 0.5, `revealDelay` 1.5/2.2-gentle, `spawnLead` 560, `dreadRange` 480) and
+`INVASION_CHANCE` (0.14) + the 3-level cooldown in [`game.ts`](../src/game/game.ts). Design notes
+below kept for reference.
 
 **Problem with v1:** it spawns visibly next to the player (no reveal/dread), is always on-camera
 (no "unseen" fear), and feels slow (base speed < player, falls behind on clean runs).
@@ -171,8 +186,12 @@ player). Wire mistake-detection off player events (flip timing, `vx≈0` while g
 **Acceptance:** feels tense on the existing short levels; you rarely see the body; a clean fast run
 survives, a hesitant one dies; `simtest`/`validate` still green (Hunted stays off by default).
 
-**Also decide with owner:** should the ghost be able to **invade normal runs** rarely/unannounced
-(merging the two modes into "one game that can turn on you")? Strong idea; confirm before building.
+**Owner decision (RESOLVED 2026-07-21 — yes, built):** the dark can **invade ordinary runs** rarely
+and unannounced — merging the two modes into "one game that can turn on you." Implemented as a
+per-level-entry roll (`INVASION_CHANCE` 0.14) gated to skip Casual and the first two levels, with a
+3-level cooldown so invasions never cluster; it strikes 3–6 s into the run (no "RUN" prompt), using a
+gentler tuning than deliberate Hunted so a surprised-but-competent player can still survive. `?invade`
+forces it every eligible level for playtesting. **To dial frequency, change `INVASION_CHANCE`.**
 
 ---
 
@@ -301,8 +320,8 @@ npm run preview    # serve build on :4173, then `npm run smoke` (Playwright boot
 
 ## 9. Open questions for the owner (resolve at kickoff)
 
-1. Epic A: should the Hunter be able to **invade normal runs** unannounced? (Recommended: yes,
-   rarely.)
+1. ~~Epic A: should the Hunter be able to **invade normal runs** unannounced?~~ **RESOLVED
+   2026-07-21: yes, rarely — built** (see Epic A). Frequency is `INVASION_CHANCE` in `game.ts`.
 2. Should **Hunted / Outrun become the marketed default** experience for new players, with Casual as
    the "practice" foundation?
 3. Monetization intent (free forever + portals, vs premium) — shapes Epic J and hosting choice
