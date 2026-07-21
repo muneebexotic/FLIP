@@ -29,6 +29,8 @@ export class Player {
   prevX = 0;
   prevY = 0;
   squash = 1; // >1 = stretched tall, <1 = squashed flat
+  /** Recent top-left positions (oldest→newest) for the motion trail. */
+  readonly trail: Array<{ x: number; y: number }> = [];
   private coyote = 0;
   private jumpBuffer = 0;
 
@@ -54,6 +56,7 @@ export class Player {
     this.jumpBuffer = 0;
     this.prevX = this.box.x;
     this.prevY = this.box.y;
+    this.trail.length = 0;
     this.clearEvents();
   }
 
@@ -65,6 +68,9 @@ export class Player {
     if (!this.alive || this.won) return;
     this.prevX = this.box.x;
     this.prevY = this.box.y;
+    // Motion-trail history (last ~0.13s of positions).
+    this.trail.push({ x: this.box.x, y: this.box.y });
+    if (this.trail.length > 16) this.trail.shift();
 
     // ---- Horizontal movement ----
     const ax = input.axisX();
@@ -84,7 +90,7 @@ export class Player {
       this.gravDir = (this.gravDir * -1) as 1 | -1;
       this.grounded = false;
       this.coyote = 0;
-      this.squash = 0.7;
+      this.squash = 0.6; // a sharper pop on the flip
       this.ev.flipped = true;
     }
 

@@ -141,11 +141,16 @@ export class MovingPlatform {
   }
 }
 
-/** A block that vanishes 2s after you first stand on it, and returns 3s later. */
+/**
+ * A block that crumbles from time SPENT STANDING on it (not from first touch),
+ * and returns 3s after it vanishes. Only stand time counts — stepping off lets
+ * it recover — so a brief touch or a quick hop across never dooms it (the old
+ * commit-on-first-contact felt unfair: it vanished even after you'd left).
+ */
 export class Faller {
   readonly box: AABB;
-  private armed = false;
-  private t = 0;
+  private standing = false; // set each frame the player is on it
+  private t = 0; // accumulated stand time
   private goneT = 0;
   private gone = false;
 
@@ -154,7 +159,7 @@ export class Faller {
   }
 
   reset(): void {
-    this.armed = false;
+    this.standing = false;
     this.t = 0;
     this.goneT = 0;
     this.gone = false;
@@ -164,9 +169,9 @@ export class Faller {
     return !this.gone;
   }
 
-  /** Called while the player is standing on this platform. */
+  /** Called each frame the player is standing on this platform. */
   arm(): void {
-    if (!this.gone && !this.armed) this.armed = true;
+    if (!this.gone) this.standing = true;
   }
 
   update(dt: number): void {
@@ -175,13 +180,17 @@ export class Faller {
       if (this.goneT >= FALL_RETURN_AT) this.reset();
       return;
     }
-    if (this.armed) {
+    if (this.standing) {
       this.t += dt;
       if (this.t >= FALL_GONE_AT) {
         this.gone = true;
         this.goneT = 0;
       }
+    } else {
+      // Recover when you're not on it, so it re-arms only under real weight.
+      this.t = Math.max(0, this.t - dt * 1.5);
     }
+    this.standing = false; // consumed; re-set next frame by arm()
   }
 
   render(ctx: CanvasRenderingContext2D, ox: number, oy: number, pal: Palette, time: number): void {
@@ -199,7 +208,7 @@ export class Faller {
       ctx.globalAlpha = 1;
       return;
     }
-    const flashing = this.armed && this.t >= FALL_FLASH_AT;
+    const flashing = this.t >= FALL_FLASH_AT;
     ctx.globalAlpha = flashing ? 0.4 + 0.6 * Math.abs(Math.sin(time * 22)) : 1;
     ctx.fillStyle = pal.solid;
     roundRect(ctx, x, y, this.box.w, this.box.h, 6);
@@ -260,17 +269,39 @@ export class Saw {
   render(ctx: CanvasRenderingContext2D, ox: number, oy: number, pal: Palette, time: number): void {
     const cx = this.box.x + TILE / 2 - ox;
     const cy = this.box.y + TILE / 2 - oy;
-    const r = TILE * 0.34;
-    const pulse = 0.5 + 0.5 * Math.sin(time * 9);
+    // Toothed blade sized to the kill hitbox (radius ~14 = the 28px AABB), so
+    // the danger silhouette matches the lethal zone instead of overspilling it
+    // like the old rotating square. Calmer spin reads as "saw", not noise.
+    const R = TILE / 2 - 6;
+    const teeth = 8;
+    const pulse = 0.5 + 0.5 * Math.sin(time * 6);
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(time * 4);
+    ctx.rotate(time * 3);
     ctx.shadowColor = pal.hazard;
-    ctx.shadowBlur = 10 + pulse * 10;
+    ctx.shadowBlur = 8 + pulse * 8;
     ctx.fillStyle = pal.hazard;
-    ctx.fillRect(-r, -r, r * 2, r * 2);
-    ctx.restore();
+    ctx.beginPath();
+    const pts = teeth * 2;
+    for (let i = 0; i <= pts; i++) {
+      const ang = (i / pts) * Math.PI * 2;
+      const rr = i % 2 === 0 ? R : R * 0.72; // alternate tooth tip / valley
+      const x = Math.cos(ang) * rr;
+      const y = Math.sin(ang) * rr;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
     ctx.shadowBlur = 0;
+    // Dark hub so the rotation is legible without strobing.
+    ctx.fillStyle = pal.bg;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 }
 

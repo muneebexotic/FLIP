@@ -55,6 +55,10 @@ export class Game {
   private invasionCooldown = 0; // level entries to wait before another may arm
   private forceInvasions = false; // dev/playtest (?invade): invade every eligible level
 
+  // ── Juice ──
+  private hitStop = 0; // brief whole-scene freeze on death, for impact
+  private flipFx = { x: 0, y: 0, t: 0 }; // expanding shockwave ring after a flip
+
   /** Set by the host to receive completion + death events. */
   onWin: (stats: RunStats) => void = () => {};
   onDeath: (deaths: number) => void = () => {};
@@ -133,7 +137,12 @@ export class Game {
   }
 
   update(dt: number): void {
+    if (this.hitStop > 0) {
+      this.hitStop -= dt; // freeze the whole scene for a beat on impact
+      return;
+    }
     this.clock += dt;
+    if (this.flipFx.t > 0) this.flipFx.t = Math.max(0, this.flipFx.t - dt);
     if (this.hintTimer > 0) this.hintTimer = Math.max(0, this.hintTimer - dt);
 
     if (this.mode === "dying") {
@@ -214,17 +223,18 @@ export class Game {
     }
     if (ev.landed) {
       playSfx("land");
-      this.particles.puff(this.player.cx(), this.footY(), 8, this.palette.solidEdge, -this.player.gravDir);
-      this.camera.shake(2, 0.12);
+      this.particles.puff(this.player.cx(), this.footY(), 12, this.palette.solidEdge, -this.player.gravDir);
+      this.camera.shake(2.5, 0.14);
     }
     if (ev.flipped) {
       playSfx("flip");
-      this.particles.burst(this.player.cx(), this.player.cy(), 14, this.palette.playerFlip, {
-        speed: 260,
-        life: 0.45,
+      this.particles.burst(this.player.cx(), this.player.cy(), 18, this.palette.playerFlip, {
+        speed: 300,
+        life: 0.5,
         size: 5,
       });
-      this.camera.shake(3, 0.15);
+      this.flipFx = { x: this.player.cx(), y: this.player.cy(), t: 0.28 };
+      this.camera.shake(4.5, 0.18);
     }
     if (ev.won) {
       this.win();
@@ -246,10 +256,11 @@ export class Game {
     this.player.alive = false;
     this.mode = "dying";
     this.dyingTimer = byHunter ? 0.7 : 0.5;
+    this.hitStop = byHunter ? 0.08 : 0.05; // freeze-frame the moment of death
     this.deaths++;
     if (byHunter) {
       playHunterCaught();
-      this.camera.shake(14, 0.6);
+      this.camera.shake(13, 0.5);
       // A dark, violent burst as it drags you down.
       this.particles.burst(this.player.cx(), this.player.cy(), 34, "#08080e", {
         speed: 300,
@@ -320,6 +331,19 @@ export class Game {
       this.renderer.drawPlayer(ctx, this.player, this.palette, ox, oy, alpha, -1);
     }
     this.particles.render(ctx, ox, oy);
+
+    // Flip shockwave: a quick expanding ring where you last flipped.
+    if (this.flipFx.t > 0) {
+      const p = 1 - this.flipFx.t / 0.28; // 0 → 1 over its life
+      ctx.save();
+      ctx.globalAlpha = (1 - p) * 0.55;
+      ctx.strokeStyle = this.palette.playerFlip;
+      ctx.lineWidth = 2 + (1 - p) * 2;
+      ctx.beginPath();
+      ctx.arc(this.flipFx.x - ox, this.flipFx.y - oy, 8 + p * 46, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // Dread — darkness bleeds in from the LEFT (where the dark lives), reddening
     // the whole frame only once it's genuinely close.

@@ -73,7 +73,7 @@ const CASUAL_ENERGY: EnergyConfig = {
 
 // ── Normal: snappier, heavier gravity; less air time; energy actually bites. ──
 const NORMAL_PHYS: PhysConfig = {
-  moveSpeed: 260,
+  moveSpeed: 290, // faster than Casual (260) — speed is the #1 feel lever
   groundAccel: 2600,
   groundFriction: 2800,
   airAccel: 1900,
@@ -97,7 +97,7 @@ const NORMAL_ENERGY: EnergyConfig = {
 
 // ── Nightmare: brutal gravity, minimal grace windows, a sliver of energy. ──
 const NIGHTMARE_PHYS: PhysConfig = {
-  moveSpeed: 260,
+  moveSpeed: 330, // fastest tier — the world comes at you hard
   groundAccel: 2600,
   groundFriction: 2800,
   airAccel: 1900,

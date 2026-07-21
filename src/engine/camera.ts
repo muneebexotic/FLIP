@@ -9,6 +9,7 @@ export class Camera {
   prevY = 0;
   private shakeMag = 0;
   private shakeT = 0;
+  private shakeDur = 0.3;
   private levelW: number = VIEW.w;
   private levelH: number = VIEW.h;
 
@@ -33,11 +34,18 @@ export class Camera {
     const k = 1 - Math.exp(-12 * dt);
     this.x = lerp(this.x, tx, k);
     this.y = lerp(this.y, ty, k);
-    if (this.shakeT > 0) this.shakeT = Math.max(0, this.shakeT - dt);
+    if (this.shakeT > 0) {
+      this.shakeT = Math.max(0, this.shakeT - dt);
+      if (this.shakeT === 0) this.shakeMag = 0; // reset so the next shake starts clean
+    }
   }
 
+  /** Kick the camera. `mag` is the PEAK amplitude in px; it decays over `dur`. */
   shake(mag: number, dur = 0.3): void {
-    this.shakeMag = Math.max(this.shakeMag, mag);
+    if (mag >= this.shakeMag) {
+      this.shakeMag = mag;
+      this.shakeDur = dur;
+    }
     this.shakeT = Math.max(this.shakeT, dur);
   }
 
@@ -46,7 +54,8 @@ export class Camera {
     let ox = lerp(this.prevX, this.x, alpha);
     let oy = lerp(this.prevY, this.y, alpha);
     if (this.shakeT > 0) {
-      const s = this.shakeMag * (this.shakeT > 0 ? this.shakeT : 0);
+      // Peak amplitude at impact, easing to zero as the kick fades.
+      const s = this.shakeMag * (this.shakeT / this.shakeDur);
       ox += (Math.random() * 2 - 1) * s;
       oy += (Math.random() * 2 - 1) * s;
     }

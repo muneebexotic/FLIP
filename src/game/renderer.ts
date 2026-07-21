@@ -1,6 +1,6 @@
 import { TILE, VIEW } from "../config";
 import type { Palette } from "../config";
-import { lerp } from "../core/math";
+import { clamp, lerp } from "../core/math";
 import { Tile } from "./level";
 import type { Level } from "./level";
 import type { Player } from "./player";
@@ -163,6 +163,26 @@ export class Renderer {
     if (deathT >= 0) {
       // Handled by particle shards in the game layer; draw nothing here.
       return;
+    }
+
+    // Motion trail: fading afterimages behind the body, stronger the faster you
+    // move. Reads great on flips and fast runs; invisible when you're careful.
+    const speed = Math.hypot(player.vx, player.vy);
+    const trailStrength = clamp((speed - 150) / 300, 0, 1);
+    if (trailStrength > 0.02 && player.trail.length > 1) {
+      const n = player.trail.length;
+      for (let i = 0; i < n - 1; i++) {
+        const tp = player.trail[i];
+        const f = i / n; // 0 oldest → ~1 newest
+        ctx.globalAlpha = f * f * 0.3 * trailStrength;
+        ctx.fillStyle = body;
+        const s = 0.68 + f * 0.24;
+        const tw = w * s;
+        const th = h * s;
+        roundRect(ctx, tp.x + (w - tw) / 2 - ox, tp.y + (h - th) / 2 - oy, tw, th, 7);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
     }
 
     // Squash/stretch: squash preserves area. squash>1 => taller & thinner.
