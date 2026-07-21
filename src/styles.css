@@ -195,6 +195,17 @@ button.btn.primary:hover {
 button.btn.ghost {
   background: transparent;
 }
+button.btn.hunted {
+  border-color: rgba(255, 45, 61, 0.55);
+  background: rgba(255, 45, 61, 0.1);
+  color: #ffd7db;
+  font-size: 14px;
+}
+button.btn.hunted:hover {
+  background: rgba(255, 45, 61, 0.2);
+  border-color: rgba(255, 45, 61, 0.9);
+  box-shadow: 0 0 22px -6px rgba(255, 45, 61, 0.8);
+}
 button.btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;

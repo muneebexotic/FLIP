@@ -3,7 +3,7 @@
  * blip with an envelope. Kept intentionally minimal (v1 scope) but juicy.
  */
 
-type SfxName = "jump" | "flip" | "land" | "death" | "win" | "click" | "warn";
+type SfxName = "jump" | "flip" | "land" | "death" | "win" | "click" | "warn" | "heartbeat";
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -41,6 +41,7 @@ const BLIPS: Record<SfxName, Blip> = {
   win: { type: "triangle", from: 523, to: 1046, dur: 0.5, glideTo: 1046, gain: 0.5 },
   click: { type: "square", from: 660, to: 660, dur: 0.05, gain: 0.25 },
   warn: { type: "square", from: 880, to: 660, dur: 0.09, glideTo: 620, gain: 0.2 },
+  heartbeat: { type: "sine", from: 82, to: 44, dur: 0.14, glideTo: 40, gain: 0.55 },
 };
 
 export function playSfx(name: SfxName): void {
@@ -66,6 +67,34 @@ export function playSfx(name: SfxName): void {
   g.connect(master);
   osc.start(now);
   osc.stop(now + b.dur + 0.02);
+}
+
+/** The Hunter catches you — a low roar layered under a downward screech. */
+export function playHunterCaught(): void {
+  if (muted) return;
+  const ac = ensure();
+  if (!ac || !master) return;
+  const now = ac.currentTime;
+  const voices: Array<[OscillatorType, number, number, number, number]> = [
+    // type, from, to, dur, gain
+    ["sawtooth", 220, 34, 0.6, 0.5], // roar
+    ["square", 1400, 180, 0.45, 0.28], // screech
+    ["sawtooth", 90, 30, 0.7, 0.4], // sub
+  ];
+  for (const [type, from, to, dur, gain] of voices) {
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, now);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, to), now + dur);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(gain, now + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.connect(g);
+    g.connect(master);
+    osc.start(now);
+    osc.stop(now + dur + 0.05);
+  }
 }
 
 /** "win" fanfare: a small arpeggio. */

@@ -56,6 +56,15 @@ The four obstacle types are first-class engine entities ([`src/game/obstacles.ts
 with their own update/collision/render — the player physically rides moving platforms. Every
 level in all three sets passes `npm run validate` (structural + per-difficulty energy budget).
 
+### Hunted mode
+
+A "☠ Hunted" menu option unleashes **The Hunter** ([`src/game/hunter.ts`](src/game/hunter.ts)) on
+any difficulty's levels: a chase entity that retraces your exact breadcrumb path (flipping gravity
+where you flipped — so it only goes where you proved you could), sits coiled for a short head-start,
+then pursues and accelerates over time. Hesitate and it closes the gap; touch it and you die. Its
+proximity darkens the screen into a red "dread" vignette with a quickening heartbeat. Pure vector +
+synth audio, no assets.
+
 ## Project layout
 
 ```

@@ -42,6 +42,7 @@ const ui = new AppUI({
   restart: () => startLevel(game.currentLevelIndex()),
   toMenu: () => gotoMenu(),
   chooseDifficulty: (d: Difficulty) => applyDifficulty(d),
+  setHunted: (on: boolean) => game.setHunted(on),
 });
 
 function startLevel(index: number): void {

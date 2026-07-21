@@ -1,10 +1,11 @@
 import { ENERGY, PALETTES, VIEW } from "../config";
 import type { Palette } from "../config";
-import { playSfx, playWin } from "../core/audio";
+import { playHunterCaught, playSfx, playWin } from "../core/audio";
 import { Input } from "../core/input";
 import { Camera } from "../engine/camera";
 import { Particles } from "../engine/particles";
 import { drawHud } from "./hud";
+import { Hunter } from "./hunter";
 import { buildLevel, levelLabel } from "./levels";
 import { Level } from "./level";
 import { Player } from "./player";
@@ -36,9 +37,23 @@ export class Game {
   private hintTimer = 0;
   private clock = 0; // ever-increasing, for animations
 
+  // ── Hunted mode ──
+  private hunted = false;
+  private hunter = new Hunter();
+  private dread = 0; // 0..1 proximity of the Hunter, drives dread effects
+  private beatTimer = 0;
+
   /** Set by the host to receive completion + death events. */
   onWin: (stats: RunStats) => void = () => {};
   onDeath: (deaths: number) => void = () => {};
+
+  /** Toggle the Hunter chase on. Applies from the next (re)spawn. */
+  setHunted(on: boolean): void {
+    this.hunted = on;
+  }
+  isHunted(): boolean {
+    return this.hunted;
+  }
 
   loadLevel(index: number): void {
     this.levelIndex = index;
@@ -57,6 +72,9 @@ export class Game {
     this.player.reset(this.level.spawn.x, this.level.spawn.y);
     this.attemptTime = 0;
     this.mode = "play";
+    this.dread = 0;
+    this.beatTimer = 0;
+    if (this.hunted) this.hunter.reset(this.player.cx(), this.player.cy());
     if (fresh) this.particles.clear();
     this.camera.snapTo(this.player.cx(), this.player.cy());
   }
@@ -95,7 +113,29 @@ export class Game {
     this.particles.update(dt);
     this.camera.follow(this.player.cx(), this.player.cy(), dt);
 
+    if (this.hunted) this.updateHunter(dt);
+
     this.consumePlayerEvents();
+  }
+
+  private updateHunter(dt: number): void {
+    if (!this.player.alive || this.player.won) return;
+    this.hunter.update(dt, this.player.cx(), this.player.cy(), this.player.gravDir);
+    this.dread = this.hunter.dread(this.player.cx(), this.player.cy());
+
+    // Heartbeat that quickens as it closes in.
+    if (this.dread > 0.04) {
+      this.beatTimer -= dt;
+      if (this.beatTimer <= 0) {
+        playSfx("heartbeat");
+        this.beatTimer = 0.95 - this.dread * 0.78; // ~0.95s far → ~0.17s close
+      }
+    }
+
+    // Caught.
+    if (this.hunter.caughtPlayer(this.player.box)) {
+      this.die(true);
+    }
   }
 
   private consumePlayerEvents(): void {
@@ -122,7 +162,7 @@ export class Game {
       this.win();
     }
     if (ev.died) {
-      this.die();
+      this.die(false);
     }
     this.player.clearEvents();
   }
@@ -132,13 +172,27 @@ export class Game {
     return this.player.gravDir > 0 ? this.player.box.y + this.player.box.h : this.player.box.y;
   }
 
-  private die(): void {
+  private die(byHunter: boolean): void {
     if (this.mode !== "play") return;
+    // Kill the player (covers Hunter catches, which aren't a player event).
+    this.player.alive = false;
     this.mode = "dying";
-    this.dyingTimer = 0.5;
+    this.dyingTimer = byHunter ? 0.7 : 0.5;
     this.deaths++;
-    playSfx("death");
-    this.camera.shake(9, 0.4);
+    if (byHunter) {
+      playHunterCaught();
+      this.camera.shake(14, 0.6);
+      // A dark, violent burst as it drags you down.
+      this.particles.burst(this.player.cx(), this.player.cy(), 34, "#08080e", {
+        speed: 300,
+        life: 0.8,
+        grav: 600,
+        size: 8,
+      });
+    } else {
+      playSfx("death");
+      this.camera.shake(9, 0.4);
+    }
     this.particles.burst(this.player.cx(), this.player.cy(), 26, this.palette.player, {
       speed: 340,
       life: 0.7,
@@ -188,10 +242,27 @@ export class Game {
       for (const s of this.level.saws) s.render(ctx, ox, oy, pal, t);
     }
 
+    // The Hunter stalks just behind the player.
+    if (this.hunted && (this.mode === "play" || this.mode === "dying")) {
+      this.hunter.render(ctx, ox, oy, this.palette, alpha, this.clock);
+    }
+
     if (this.mode !== "dying") {
       this.renderer.drawPlayer(ctx, this.player, this.palette, ox, oy, alpha, -1);
     }
     this.particles.render(ctx, ox, oy);
+
+    // Dread vignette — the world darkens and reddens as the Hunter closes in.
+    if (this.hunted && this.dread > 0.02 && (this.mode === "play" || this.mode === "dying")) {
+      const grad = ctx.createRadialGradient(
+        VIEW.w / 2, VIEW.h / 2, VIEW.h * 0.22,
+        VIEW.w / 2, VIEW.h / 2, VIEW.h * 0.78,
+      );
+      grad.addColorStop(0, "rgba(0,0,0,0)");
+      grad.addColorStop(1, `rgba(28,0,6,${this.dread * 0.74})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, VIEW.w, VIEW.h);
+    }
 
     // HUD (skip on the won frame so the results screen is clean).
     if (this.mode === "play" || this.mode === "dying") {
@@ -206,6 +277,22 @@ export class Game {
         },
         this.clock,
       );
+    }
+
+    // Head-start "RUN" prompt while the Hunter is still coiled.
+    if (this.hunted && this.mode === "play" && !this.hunter.started) {
+      const p = 0.5 + 0.5 * Math.sin(this.clock * 8);
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.globalAlpha = 0.55 + p * 0.45;
+      ctx.fillStyle = this.palette.hazard;
+      ctx.font = "800 48px system-ui, sans-serif";
+      ctx.fillText("RUN", VIEW.w / 2, 128);
+      ctx.globalAlpha = 0.7;
+      ctx.font = "600 15px system-ui, sans-serif";
+      ctx.fillStyle = this.palette.text;
+      ctx.fillText("it's waking up", VIEW.w / 2, 154);
+      ctx.restore();
     }
 
     // Start-of-level hint.

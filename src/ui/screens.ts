@@ -25,6 +25,7 @@ export interface AppHooks {
   restart(): void;
   toMenu(): void;
   chooseDifficulty(d: Difficulty): void;
+  setHunted(on: boolean): void;
 }
 
 /** Furthest unlocked level index for the ACTIVE difficulty (progressive unlock). */
@@ -157,6 +158,9 @@ export class AppUI {
         <button class="btn primary" data-act="play">${cont > 0 ? "Continue" : "Play"}</button>
         <button class="btn" data-act="levels">Levels</button>
       </div>
+      <div class="row" style="margin-top:2px">
+        <button class="btn hunted" data-act="hunted">☠ Hunted — something chases you</button>
+      </div>
       <div class="hintline">
         <kbd>A</kbd><kbd>D</kbd> move &nbsp; <kbd>Space</kbd> jump &nbsp;
         <kbd>Shift</kbd> flip &nbsp; <kbd>R</kbd> retry
@@ -164,11 +168,18 @@ export class AppUI {
     `);
     this.overlay.querySelector('[data-act="play"]')!.addEventListener("click", () => {
       playSfx("click");
+      this.hooks.setHunted(false);
       this.hooks.playLevel(Math.min(cont, LEVEL_COUNT - 1));
     });
     this.overlay.querySelector('[data-act="levels"]')!.addEventListener("click", () => {
       playSfx("click");
+      this.hooks.setHunted(false);
       this.showLevelSelect();
+    });
+    this.overlay.querySelector('[data-act="hunted"]')!.addEventListener("click", () => {
+      playSfx("click");
+      this.hooks.setHunted(true);
+      this.hooks.playLevel(Math.min(cont, LEVEL_COUNT - 1));
     });
     this.overlay.querySelector('[data-act="difficulty"]')!.addEventListener("click", () => {
       playSfx("click");
