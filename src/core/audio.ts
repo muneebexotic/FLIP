@@ -97,6 +97,58 @@ export function playHunterCaught(): void {
   }
 }
 
+/**
+ * The Encroaching Dark wakes — a low drone swells under a slow breath. Presence
+ * felt before seen. Kept quiet so it thins the mix rather than jump-scaring.
+ */
+export function playDarkReveal(): void {
+  if (muted) return;
+  const ac = ensure();
+  if (!ac || !master) return;
+  const now = ac.currentTime;
+  const voices: Array<[OscillatorType, number, number, number, number]> = [
+    // type, from, to, dur, gain
+    ["sine", 58, 44, 1.6, 0.34], // sub drone
+    ["sawtooth", 41, 33, 1.6, 0.16], // grit under it
+    ["triangle", 140, 70, 0.9, 0.1], // a slow exhaled "breath"
+  ];
+  for (const [type, from, to, dur, gain] of voices) {
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, now);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, to), now + dur);
+    // Slow swell in, slow fade out — no attack transient.
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(gain, now + 0.35);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.connect(g);
+    g.connect(master);
+    osc.start(now);
+    osc.stop(now + dur + 0.05);
+  }
+}
+
+/** Reaching the goal — the dark recedes and the tension releases. A soft sigh. */
+export function playDarkExhale(): void {
+  if (muted) return;
+  const ac = ensure();
+  if (!ac || !master) return;
+  const now = ac.currentTime;
+  const osc = ac.createOscillator();
+  const g = ac.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(280, now);
+  osc.frequency.exponentialRampToValueAtTime(120, now + 0.6);
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(0.26, now + 0.05);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+  osc.connect(g);
+  g.connect(master);
+  osc.start(now);
+  osc.stop(now + 0.65);
+}
+
 /** "win" fanfare: a small arpeggio. */
 export function playWin(): void {
   if (muted) return;

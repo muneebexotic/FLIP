@@ -1,6 +1,6 @@
 import { ENERGY, PALETTES, VIEW } from "../config";
 import type { Palette } from "../config";
-import { playHunterCaught, playSfx, playWin } from "../core/audio";
+import { playDarkExhale, playDarkReveal, playHunterCaught, playSfx, playWin } from "../core/audio";
 import { Input } from "../core/input";
 import { Camera } from "../engine/camera";
 import { Particles } from "../engine/particles";
@@ -120,10 +120,18 @@ export class Game {
 
   private updateHunter(dt: number): void {
     if (!this.player.alive || this.player.won) return;
-    this.hunter.update(dt, this.player.cx(), this.player.cy(), this.player.gravDir);
-    this.dread = this.hunter.dread(this.player.cx(), this.player.cy());
+    const woke = this.hunter.update(
+      dt,
+      this.player.cx(),
+      this.player.cy(),
+      this.player.vx,
+      this.player.grounded,
+      this.player.ev.flipped, // one-shot: a clean flip relieves the dark's surge
+    );
+    if (woke) playDarkReveal(); // the reveal: low drone + breath, presence felt
+    this.dread = this.hunter.dread(this.player.cx());
 
-    // Heartbeat that quickens as it closes in.
+    // Heartbeat that quickens as the dark closes in.
     if (this.dread > 0.04) {
       this.beatTimer -= dt;
       if (this.beatTimer <= 0) {
@@ -132,8 +140,8 @@ export class Game {
       }
     }
 
-    // Caught.
-    if (this.hunter.caughtPlayer(this.player.box)) {
+    // Caught — the dark reached you.
+    if (this.hunter.caughtPlayer(this.player.cx())) {
       this.die(true);
     }
   }
@@ -212,6 +220,7 @@ export class Game {
     if (this.mode !== "play") return;
     this.mode = "won";
     playWin();
+    if (this.hunted) playDarkExhale(); // the dark recedes — tension releases
     this.camera.shake(4, 0.3);
     this.particles.burst(this.level.goal.x + 20, this.level.goal.y + 20, 40, this.palette.accent, {
       speed: 320,
@@ -252,16 +261,27 @@ export class Game {
     }
     this.particles.render(ctx, ox, oy);
 
-    // Dread vignette — the world darkens and reddens as the Hunter closes in.
+    // Dread — darkness bleeds in from the LEFT (where the dark lives), reddening
+    // the whole frame only once it's genuinely close.
     if (this.hunted && this.dread > 0.02 && (this.mode === "play" || this.mode === "dying")) {
-      const grad = ctx.createRadialGradient(
-        VIEW.w / 2, VIEW.h / 2, VIEW.h * 0.22,
-        VIEW.w / 2, VIEW.h / 2, VIEW.h * 0.78,
-      );
-      grad.addColorStop(0, "rgba(0,0,0,0)");
-      grad.addColorStop(1, `rgba(28,0,6,${this.dread * 0.74})`);
-      ctx.fillStyle = grad;
+      const d = this.dread;
+      const side = ctx.createLinearGradient(0, 0, VIEW.w * 0.62, 0);
+      side.addColorStop(0, `rgba(4,0,8,${Math.min(0.9, 0.3 + d * 0.6)})`);
+      side.addColorStop(0.5, `rgba(14,0,10,${d * 0.32})`);
+      side.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = side;
       ctx.fillRect(0, 0, VIEW.w, VIEW.h);
+
+      if (d > 0.5) {
+        const grad = ctx.createRadialGradient(
+          VIEW.w / 2, VIEW.h / 2, VIEW.h * 0.28,
+          VIEW.w / 2, VIEW.h / 2, VIEW.h * 0.8,
+        );
+        grad.addColorStop(0, "rgba(0,0,0,0)");
+        grad.addColorStop(1, `rgba(34,0,8,${(d - 0.5) * 0.7})`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, VIEW.w, VIEW.h);
+      }
     }
 
     // HUD (skip on the won frame so the results screen is clean).
