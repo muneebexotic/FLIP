@@ -176,15 +176,33 @@ survives, a hesitant one dies; `simtest`/`validate` still green (Hunted stays of
 
 ---
 
-### Epic B — Feel & Speed pass + obstacle bug fixes
+### Epic B — Feel, visuals & speed pass + obstacle bug fixes
 
 - **Per-difficulty `moveSpeed`** (e.g. ~240 / ~290 / ~330). This is the biggest single feel win.
 - **Juice:** 3-frame hit-stop on death; motion trail behind the player; chromatic/scale pop on flip;
-  denser landing particles; screen-shake tuning; a light music/ambient layer (still WebAudio synth).
+  denser landing particles; screen-shake tuning.
+- **Neon bloom (prototyped — see below).** A pure-Canvas-2D bloom post-process already exists at
+  [`src/engine/bloom.ts`](../src/engine/bloom.ts), wired in `main.ts` behind a `?bloom` URL param
+  (off by default; try `?bloom=1`). **Task:** decide final strength, make it a real setting (not a
+  URL param), consider a proper threshold+downsample (a small WebGL pass) for a crisper, cheaper
+  halo, and ensure it doesn't tank perf on low-end mobile (skip or lower blur there).
+- **Parallax depth layers.** Add 2–3 background planes in `renderer.drawBackground` moving at
+  different rates (+ subtle scale/lighting) to fake 3D depth cheaply. Reads as "2.5D" with none of a
+  3D rewrite's cost.
 - **Fix the saw** (match hitbox to visual; calm the spin) and the **faller** (only count stand time,
   or clearer telegraph). Add a **new flip-centric obstacle** (e.g., a spike that sits on BOTH faces
   of a moving platform, or a directional gravity-arrow field).
-- **Acceptance:** difficulties feel distinct; obstacle hitboxes match visuals; `simtest` green.
+- **Music (the one asset worth importing).** SFX stay synth, but a real authored/licensed music
+  track is the single biggest "banger" lever and is hard to synth well — evaluate adding one small
+  audio asset (keep it lazy-loaded so it never blocks first paint).
+- **Acceptance:** difficulties feel distinct; obstacle hitboxes match visuals; bloom/parallax look
+  good and don't regress load/perf; `simtest` green.
+
+> **Visual-direction decision (this session):** stay **2D**. Do NOT rewrite to Three.js / go 3D — a
+> 3D engine (~150 KB+) would kill FLIP's instant-load viral edge, and precision platformers are 2D
+> for readability/feel reasons (that would be "FLIP 2," a new game, not an upgrade). The "wow" comes
+> from **animation + bloom + parallax**, all cheap and in the current stack. No external assets
+> except (maybe) music.
 
 ### Epic C — Redesign Normal + a post-Nightmare tier
 
