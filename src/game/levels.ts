@@ -145,71 +145,73 @@ const CASUAL_LEVELS: LevelDef[] = [
   w4a, w4b, w4c,
 ];
 
-// ═══ Normal — moving platforms, tighter gaps, energy that bites (~1.34s/flip) ═
-// Flip crossings ≤ 5 tiles; wide gaps are pits crossed by moving platforms.
+// ═══ Normal — geometry that DEMANDS the harder physics (~1.34s/flip) ══════════
+// Redesigned so difficulty comes from the layout, not just the numbers: long
+// crossings near the energy limit, tiny refuel windows pinned by ceiling teeth,
+// tight rooms, and ferries you chain straight into a flip. Floor runs ≤ 6.
 
-// World 1 · Dusk (no movers yet — tighten the fundamentals)
-const nm1 = corridorX(0, "Slip", 10, "Tighter than you're used to. Time the jumps.", 30, 4,
+// World 1 · Dusk — meet the tighter budget (no nets yet)
+const nm1 = corridorX(0, "Slip", 11, "Tighter energy now. Cross clean or come up short.", 28, 3,
   "",
-  ".P....^^....^^^^....^^....G",
+  ".P.....^^^^^....^^^^^....G",
 );
-const nm2 = corridorX(0, "Pinch", 15, "Ceiling teeth force you down between crossings", 40, 4,
-  "............^^^.......^^^",
-  ".P.....^^^^......^^^^......^^^^..G",
+const nm2 = corridorX(0, "Pinch", 15, "Ceiling teeth pin you down — refuel, then commit", 34, 3,
+  "...........^^^......^^^",
+  ".P....^^^^^....^^^^^....^^^^^...G",
 );
-const nm3 = corridorX(0, "Thread", 18, "Flip early — the room is short", 40, 3,
-  "..........^^^.....^^^",
-  ".P....^^^.....^^^.....^^^....G",
-);
-
-// World 2 · Ember (moving platforms)
-const nm4 = corridorX(1, "Ferry", 16, "Ride the platform across — mistime it and you fall", 24, 4,
-  "",
-  ".P.....______....^^..G",
-  { movers: [ferry(7, 3, 3, 2.5, 4)] },
-);
-const nm5 = corridorX(1, "Tides", 22, "Two ferries, out of sync", 40, 4,
-  "",
-  ".P....____....^^....____....G",
-  { movers: [ferry(6, 2, 2, 2.6, 4), ferry(20, 2, 2, 2.6, 4, 0.5)] },
-);
-const nm6 = corridorX(1, "Relay", 24, "Platform, then a flip — chain them", 40, 4,
-  "",
-  ".P....____....^^^^....____...G",
-  { movers: [ferry(6, 2, 2, 2.8, 4), ferry(22, 2, 2, 2.8, 4)] },
+const nm3 = corridorX(0, "Thread", 18, "Three tiles of rest. Spend energy exactly.", 32, 3,
+  "...........^^^.....^^^",
+  ".P....^^^^^...^^^^^...^^^^^...G",
 );
 
-// World 3 · Bloom (movers + tighter routing)
-const nm7 = corridorX(2, "Lull", 26, "Keep your energy for the flips that matter", 40, 4,
+// World 2 · Ember — ferries you chain straight into a flip
+const nm4 = corridorX(1, "Ferry", 16, "Ride across, then flip — no pause between them", 26, 4,
   "",
-  ".P....____...^^^....____...^^.G",
-  { movers: [ferry(6, 2, 2, 3, 4), ferry(20, 2, 2, 3, 4)] },
+  ".P....______...^^^^^..G",
+  { movers: [ferry(6, 3, 3, 2.6, 4)] },
 );
-const nm8 = corridorX(2, "Cascade", 30, "Three ferries — read the rhythm", 44, 4,
+const nm5 = corridorX(1, "Tides", 22, "Two ferries out of sync, a crossing between", 40, 4,
+  "..................^^^",
+  ".P....____...^^^^^...____...G",
+  { movers: [ferry(6, 2, 3, 2.8, 4), ferry(21, 2, 3, 2.8, 4, 0.5)] },
+);
+const nm6 = corridorX(1, "Relay", 24, "Ferry, long flip, ferry — hold your fuel", 42, 3,
   "",
-  ".P...____...____...____...G",
+  ".P....____...^^^^^^...____...G",
+  { movers: [ferry(6, 2, 3, 3, 3), ferry(22, 2, 3, 3, 3)] },
+);
+
+// World 3 · Bloom — long crossings at the fuel limit
+const nm7 = corridorX(2, "Lull", 26, "That last crossing is right at your limit", 40, 3,
+  "...........^^^",
+  ".P....^^^^^...____...^^^^^^..G",
+  { movers: [ferry(14, 2, 3, 3, 3)] },
+);
+const nm8 = corridorX(2, "Cascade", 30, "Three ferries — read the rhythm, don't stall", 44, 4,
+  "..........^^^",
+  ".P...____...____...____...^^^^^.G",
   { movers: [ferry(5, 2, 2, 3, 4), ferry(12, 2, 2, 3, 4, 0.33), ferry(19, 2, 2, 3, 4, 0.66)] },
 );
-const nm9 = corridorX(2, "Vault", 32, "Short room, long spikes — commit", 40, 3,
-  "...........^^^",
-  ".P...^^^..____..^^^..G",
-  { movers: [ferry(10, 2, 2, 3, 3)] },
+const nm9 = corridorX(2, "Vault", 32, "Short room, long teeth. Commit early.", 38, 3,
+  "..............^^^",
+  ".P...^^^^^..____..^^^^^..G",
+  { movers: [ferry(12, 2, 3, 3, 3)] },
 );
 
-// World 4 · Void (everything Normal has)
-const nm10 = corridorX(3, "Onslaught", 40, "No more warm-ups", 48, 4,
-  "..........^^^...........^^^",
-  ".P....^^^^...____...^^^^...____..^^^.G",
-  { movers: [ferry(13, 2, 2, 3, 4), ferry(27, 2, 2, 3, 4)] },
+// World 4 · Void — everything Normal has, back to back
+const nm10 = corridorX(3, "Onslaught", 40, "No more warm-ups", 48, 3,
+  "............^^^.............^^^",
+  ".P....^^^^^^...____...^^^^^^...____..G",
+  { movers: [ferry(15, 2, 3, 3, 3), ferry(31, 2, 3, 3, 3)] },
 );
-const nm11 = corridorX(3, "Torrent", 44, "Tight room, no rest", 48, 3,
-  ".........^^.....^^.....^^",
-  ".P...^^^....^^^....^^^....^^^...G",
+const nm11 = corridorX(3, "Torrent", 44, "A comb with no rest. Flip, land, flip.", 48, 3,
+  "..........^^^.....^^^.....^^^",
+  ".P...^^^^^...^^^^^...^^^^^...^^^^^..G",
 );
-const nm12 = corridorX(3, "Reckoning", 52, "Everything you've learned, back to back", 52, 4,
-  ".............^^^.............^^^",
-  ".P....^^^^...____...^^^^...____...^^^^..G",
-  { movers: [ferry(13, 2, 2, 3, 4), ferry(27, 2, 2, 3, 4, 0.5)] },
+const nm12 = corridorX(3, "Reckoning", 52, "Everything you've learned, at the limit", 54, 3,
+  ".............^^^...........^^^",
+  ".P....^^^^^^..____..^^^^^^..____..^^^^^.G",
+  { movers: [ferry(14, 2, 3, 3.2, 3), ferry(28, 2, 3, 3.2, 3, 0.5)] },
 );
 
 const NORMAL_LEVELS: LevelDef[] = [
