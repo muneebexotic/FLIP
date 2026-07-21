@@ -5,7 +5,7 @@ create table if not exists public.scores (
   id         uuid primary key default gen_random_uuid(),
   level      int  not null check (level >= 0 and level < 100),
   difficulty text not null default 'casual'
-             check (difficulty in ('casual', 'normal', 'nightmare')),
+             check (difficulty in ('casual', 'normal', 'nightmare', 'abyss')),
   name       text not null check (char_length(name) between 1 and 24),
   time_ms    int  not null check (time_ms > 0 and time_ms < 3600000),
   deaths     int  not null check (deaths >= 0 and deaths < 100000),
@@ -14,7 +14,13 @@ create table if not exists public.scores (
 
 -- If upgrading an existing table, add the column:
 --   alter table public.scores add column if not exists difficulty text
---     not null default 'casual' check (difficulty in ('casual','normal','nightmare'));
+--     not null default 'casual' check (difficulty in ('casual','normal','nightmare','abyss'));
+--
+-- If your table PRE-DATES the Abyss tier, its CHECK still rejects 'abyss' scores.
+-- Widen it (run once in the Supabase SQL editor):
+--   alter table public.scores drop constraint if exists scores_difficulty_check;
+--   alter table public.scores add constraint scores_difficulty_check
+--     check (difficulty in ('casual','normal','nightmare','abyss'));
 
 -- Fast per-level, per-difficulty leaderboard queries.
 create index if not exists scores_board_time_idx  on public.scores (level, difficulty, time_ms);
