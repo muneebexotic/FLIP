@@ -1,7 +1,7 @@
 import { TILE } from "../config";
 import type { Palette } from "../config";
 import type { AABB } from "../core/math";
-import { aabbOverlap } from "../core/math";
+import { aabbOverlap, lerp } from "../core/math";
 
 /** Gravity-zone multipliers (per spec). */
 export const ZONE_GRAVITY_MUL = 1.6;
@@ -71,6 +71,10 @@ export class MovingPlatform {
   /** Delta moved during the most recent update (for carrying riders). */
   dx = 0;
   dy = 0;
+  // Position before the most recent step, for render interpolation (so the
+  // platform stays in lockstep with the interpolated camera + rider).
+  private prevX: number;
+  private prevY: number;
   private readonly ox: number;
   private readonly oy: number;
   private readonly axis: "h" | "v";
@@ -88,6 +92,8 @@ export class MovingPlatform {
     this.phasePx = (d.phase ?? 0) * 2 * this.rangePx;
     this.box = { x: this.ox, y: this.oy, w: d.w * TILE, h: d.h * TILE };
     this.place();
+    this.prevX = this.box.x;
+    this.prevY = this.box.y;
   }
 
   private place(): void {
@@ -101,20 +107,24 @@ export class MovingPlatform {
     this.dx = 0;
     this.dy = 0;
     this.place();
+    this.prevX = this.box.x;
+    this.prevY = this.box.y;
   }
 
   update(dt: number): void {
     const px = this.box.x;
     const py = this.box.y;
+    this.prevX = px;
+    this.prevY = py;
     this.elapsed += dt;
     this.place();
     this.dx = this.box.x - px;
     this.dy = this.box.y - py;
   }
 
-  render(ctx: CanvasRenderingContext2D, ox: number, oy: number, pal: Palette): void {
-    const x = this.box.x - ox;
-    const y = this.box.y - oy;
+  render(ctx: CanvasRenderingContext2D, ox: number, oy: number, pal: Palette, alpha: number): void {
+    const x = lerp(this.prevX, this.box.x, alpha) - ox;
+    const y = lerp(this.prevY, this.box.y, alpha) - oy;
     ctx.fillStyle = pal.solid;
     roundRect(ctx, x, y, this.box.w, this.box.h, 6);
     ctx.fill();
@@ -226,6 +236,8 @@ export class Faller {
 /** A spike that slides along a track; lethal on contact like a static spike. */
 export class Saw {
   readonly box: AABB;
+  private prevX: number;
+  private prevY: number;
   private readonly ox: number;
   private readonly oy: number;
   private readonly axis: "h" | "v";
@@ -243,6 +255,8 @@ export class Saw {
     this.phasePx = (d.phase ?? 0) * 2 * this.rangePx;
     this.box = { x: this.ox, y: this.oy, w: TILE, h: TILE };
     this.place();
+    this.prevX = this.box.x;
+    this.prevY = this.box.y;
   }
 
   private place(): void {
@@ -254,9 +268,13 @@ export class Saw {
   reset(): void {
     this.elapsed = 0;
     this.place();
+    this.prevX = this.box.x;
+    this.prevY = this.box.y;
   }
 
   update(dt: number): void {
+    this.prevX = this.box.x;
+    this.prevY = this.box.y;
     this.elapsed += dt;
     this.place();
   }
@@ -266,9 +284,16 @@ export class Saw {
     return { x: this.box.x + 6, y: this.box.y + 6, w: TILE - 12, h: TILE - 12 };
   }
 
-  render(ctx: CanvasRenderingContext2D, ox: number, oy: number, pal: Palette, time: number): void {
-    const cx = this.box.x + TILE / 2 - ox;
-    const cy = this.box.y + TILE / 2 - oy;
+  render(
+    ctx: CanvasRenderingContext2D,
+    ox: number,
+    oy: number,
+    pal: Palette,
+    time: number,
+    alpha: number,
+  ): void {
+    const cx = lerp(this.prevX, this.box.x, alpha) + TILE / 2 - ox;
+    const cy = lerp(this.prevY, this.box.y, alpha) + TILE / 2 - oy;
     // Toothed blade sized to the kill hitbox (radius ~14 = the 28px AABB), so
     // the danger silhouette matches the lethal zone instead of overspilling it
     // like the old rotating square. Calmer spin reads as "saw", not noise.

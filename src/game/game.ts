@@ -317,9 +317,9 @@ export class Game {
       const pal = this.palette;
       const t = this.clock;
       for (const z of this.level.zones) z.render(ctx, ox, oy, pal, t);
-      for (const m of this.level.movers) m.render(ctx, ox, oy, pal);
+      for (const m of this.level.movers) m.render(ctx, ox, oy, pal, alpha);
       for (const f of this.level.fallers) f.render(ctx, ox, oy, pal, t);
-      for (const s of this.level.saws) s.render(ctx, ox, oy, pal, t);
+      for (const s of this.level.saws) s.render(ctx, ox, oy, pal, t, alpha);
     }
 
     // The dark eats the level from the left, just behind the player.
