@@ -4,7 +4,7 @@ import type { Difficulty } from "./config";
 import { initDifficulty, setDifficulty } from "./difficulty";
 import type { Action } from "./core/input";
 import { GameLoop } from "./core/loop";
-import { applyBloom } from "./engine/bloom";
+import { applyBloom, bloomStrength, initBloom, isBloomOn, setBloomOn } from "./engine/bloom";
 import { Game } from "./game/game";
 import type { RunStats } from "./game/game";
 import { AppUI } from "./ui/screens";
@@ -12,12 +12,15 @@ import { AppUI } from "./ui/screens";
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d", { alpha: false })!;
 
-// Experimental neon bloom: opt in with ?bloom (or ?bloom=0.5 for strength).
-const bloomParam = new URLSearchParams(location.search).get("bloom");
-const bloomStrength = bloomParam === null ? 0 : Number(bloomParam) || 0.55;
-
 const isTouch =
   window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+
+// Neon bloom is a persisted setting (toggle in the HUD): on by default on
+// desktop, off on touch for perf. ?bloom=1 / ?bloom=0 override for a session.
+initBloom(!isTouch);
+const bloomParam = new URLSearchParams(location.search).get("bloom");
+if (bloomParam !== null) setBloomOn(bloomParam !== "0");
+const bloomBlur = isTouch ? 6 : 8;
 
 // ── Canvas sizing: fit VIEW into the window, crisp at device resolution ──────
 let renderScale = 1;
@@ -102,7 +105,7 @@ const loop = new GameLoop(
     ctx.clearRect(0, 0, VIEW.w, VIEW.h);
     game.render(ctx, alpha);
     ctx.restore();
-    if (bloomStrength > 0) applyBloom(ctx, bloomStrength);
+    if (isBloomOn()) applyBloom(ctx, bloomStrength(), bloomBlur);
   },
 );
 

@@ -6,8 +6,37 @@
  * bright glowing accents, the near-black areas add ~nothing while the bright
  * shapes bleed a soft halo — i.e. bloom. Strength/blur are tunable; a WebGL
  * threshold+downsample pass would be sharper/faster but this proves the look and
- * ships in a few lines. Experimental: gated by a `?bloom` URL param in main.ts.
+ * ships in a few lines.
+ *
+ * It is now a real, persisted setting (toggle in the HUD), defaulting ON on
+ * desktop and OFF on touch for perf. `?bloom=1` / `?bloom=0` still override.
  */
+import { load, save } from "../core/storage";
+
+const KEY = "bloom";
+const STRENGTH = 0.42; // tuned so accents glow without washing out the scene
+let enabled = false;
+
+/** Seed enabled-state from storage, falling back to a device-appropriate default. */
+export function initBloom(defaultOn: boolean): void {
+  const stored = load<boolean | null>(KEY, null);
+  enabled = typeof stored === "boolean" ? stored : defaultOn;
+}
+export function isBloomOn(): boolean {
+  return enabled;
+}
+export function setBloomOn(on: boolean): void {
+  enabled = on;
+  save(KEY, on);
+}
+export function toggleBloom(): boolean {
+  setBloomOn(!enabled);
+  return enabled;
+}
+export function bloomStrength(): number {
+  return STRENGTH;
+}
+
 let off: HTMLCanvasElement | null = null;
 let offCtx: CanvasRenderingContext2D | null = null;
 

@@ -2,6 +2,7 @@ import { PALETTES } from "../config";
 import type { Difficulty } from "../config";
 import { isMuted, playSfx, toggleMute } from "../core/audio";
 import { load, save } from "../core/storage";
+import { isBloomOn, toggleBloom } from "../engine/bloom";
 import { DIFFICULTIES, getDifficulty, metaOf } from "../difficulty";
 import type { RunStats } from "../game/game";
 import { formatTime } from "../game/hud";
@@ -482,8 +483,14 @@ export class AppUI {
     const wrap = this.div("");
     wrap.className = "util hidden";
     wrap.innerHTML = `
+      <button class="icon" data-u="bloom" title="Glow">${isBloomOn() ? "✨" : "✩"}</button>
       <button class="icon" data-u="mute" title="Mute">${isMuted() ? "🔇" : "🔊"}</button>
       <button class="icon" data-u="pause" title="Menu">⏸</button>`;
+    wrap.querySelector('[data-u="bloom"]')!.addEventListener("click", (e) => {
+      playSfx("click");
+      const on = toggleBloom();
+      (e.currentTarget as HTMLElement).textContent = on ? "✨" : "✩";
+    });
     wrap.querySelector('[data-u="mute"]')!.addEventListener("click", (e) => {
       const m = toggleMute();
       (e.currentTarget as HTMLElement).textContent = m ? "🔇" : "🔊";

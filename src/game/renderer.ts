@@ -24,6 +24,11 @@ function roundRect(
   ctx.closePath();
 }
 
+/** Fractional part in [0,1) — used to place parallax blobs deterministically. */
+function fract(x: number): number {
+  return x - Math.floor(x);
+}
+
 /** Draws the level, goal, and player in world space. HUD is drawn separately. */
 export class Renderer {
   drawBackground(ctx: CanvasRenderingContext2D, pal: Palette, ox: number, oy: number): void {
@@ -33,6 +38,11 @@ export class Renderer {
     grad.addColorStop(1, pal.bgGrid);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, VIEW.w, VIEW.h);
+
+    // Depth layers: soft blobs drifting slower than the world fake 2.5D depth
+    // for cheap. Far layer barely moves; the mid layer moves a bit more.
+    this.drawParallaxLayer(ctx, pal.solidEdge, ox, oy, 0.08, 330, 135, 0.06);
+    this.drawParallaxLayer(ctx, pal.accent, ox, oy, 0.16, 250, 78, 0.05);
 
     // Parallax grid (moves slower than the world for depth).
     const p = 0.35;
@@ -52,6 +62,43 @@ export class Renderer {
     }
     ctx.stroke();
     ctx.globalAlpha = 1;
+  }
+
+  /** One depth plane of soft blobs, placed deterministically so they don't
+   *  flicker as the camera scrolls. `p` < 1 = further away (moves slower). */
+  private drawParallaxLayer(
+    ctx: CanvasRenderingContext2D,
+    color: string,
+    ox: number,
+    oy: number,
+    p: number,
+    spacing: number,
+    radius: number,
+    alpha: number,
+  ): void {
+    const worldLeft = ox * p;
+    const first = Math.floor(worldLeft / spacing) - 1;
+    const last = Math.floor((worldLeft + VIEW.w) / spacing) + 1;
+    for (let c = first; c <= last; c++) {
+      const h1 = fract(Math.sin(c * 12.9898) * 43758.5453);
+      const h2 = fract(Math.sin(c * 3.7431) * 15731.743);
+      const sx = c * spacing - worldLeft + (h2 - 0.5) * spacing * 0.5;
+      const sy = h1 * VIEW.h - oy * p * 0.6;
+      const r = radius * (0.6 + h2 * 0.7);
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+      g.addColorStop(0, this.rgba(color, alpha));
+      g.addColorStop(1, this.rgba(color, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+    }
+  }
+
+  private rgba(hex: string, a: number): string {
+    const h = hex.replace("#", "");
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${a})`;
   }
 
   drawLevel(

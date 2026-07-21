@@ -19,9 +19,10 @@
 - **The owner cannot pay for AI APIs.** Use **offline generation** (you, the model, generate
   content now and commit it) or **free tiers** (Groq / Google Gemini). The validator is the quality
   gate, so model strength barely matters.
-- **Kick off epics in the order in section 6.** Epic A (Hunter v2 — "The Encroaching Dark") is
-  **DONE (2026-07-21)**; **Epic B (feel/visuals/speed pass + finish the `?bloom` prototype) is next.**
-  Do ONE epic at a time; verify; commit; push (auto-deploys).
+- **Kick off epics in the order in section 6.** Epic A (Hunter v2) **DONE**; Epic B (feel/visuals/
+  speed pass) **LARGELY DONE (2026-07-21)** — only optional items left (music decision, new obstacle,
+  WebGL bloom). **Epic C (redesign Normal + a post-Nightmare tier) is next.** Do ONE epic at a time;
+  verify; commit; push (auto-deploys).
 
 ---
 
@@ -101,15 +102,14 @@ sharecard), `src/main.ts` (app shell), `scripts/*` (validate/sim/smoke).
 
 ## 4. Known issues / bugs (found in code review — fix as part of the relevant epic)
 
-1. **`moveSpeed` is identical (260) across all three difficulties.** Speed is the #1 "feel" lever;
-   the game never gets faster. → Epic B.
+1. ~~**`moveSpeed` is identical (260) across all three difficulties.**~~ **FIXED (Epic B):** Normal
+   290, Nightmare 330 (Casual frozen 260).
 2. **Normal levels are geometrically too gentle** → Normal "feels like Casual" despite harder
    physics. Difficulty must come from level-design pressure. → Epic C.
-3. **Saw hitbox vs visual mismatch** — the saw spins (`rotate(time*4)`); a rotating square's corners
-   (~19 px) exceed the 14 px kill hitbox, so its corners visually poke past the kill zone. Also the
-   fast spin reads as noise. → Epic B.
-4. **Faller commits on first touch** — it vanishes 2 s after first contact even if the player steps
-   off. Feels unfair/buggy. Consider only counting while stood on. → Epic B.
+3. ~~**Saw hitbox vs visual mismatch**~~ **FIXED (Epic B):** now a toothed blade sized to the ~14px
+   kill hitbox (silhouette matches the lethal zone), calmer `time*3` spin. Hitbox unchanged.
+4. ~~**Faller commits on first touch**~~ **FIXED (Epic B):** crumbles from time *spent standing* and
+   recovers when you step off, so a brief touch / quick hop across no longer dooms it.
 5. **Movers are one-note** — every mover is a horizontal ferry over a pit; the vertical `lift`
    helper was removed. Underused mechanic. → Epic B/C.
 6. **Hunter v1 isn't scary** — see Epic A.
@@ -195,7 +195,20 @@ forces it every eligible level for playtesting. **To dial frequency, change `INV
 
 ---
 
-### Epic B — Feel, visuals & speed pass + obstacle bug fixes
+### Epic B — Feel, visuals & speed pass + obstacle bug fixes (LARGELY DONE 2026-07-21)
+
+**Shipped this session:** per-difficulty `moveSpeed` (Casual 260 frozen / Normal 290 / Nightmare
+330); juice — 3-frame hit-stop on death, speed-reactive player motion trail, expanding flip
+shockwave ring + sharper flip squash, denser landing dust, and a camera-shake rework (`mag` is now
+the PEAK px amplitude — the old `mag*time` made shakes nearly invisible); saw fix (toothed blade
+sized to the ~14px kill hitbox, calmer spin — no more corners poking past the lethal zone; hitbox
+unchanged); faller fix (crumbles from time *spent standing*, recovers when you step off); parallax
+depth blobs in `drawBackground`; and **bloom is now a real persisted setting** (HUD ✨ toggle,
+default ON desktop / OFF touch, strength 0.42, `?bloom=1/0` override). Verified green + browser.
+**Still open in B (optional / owner calls):** a proper WebGL threshold+downsample bloom (kept the
+Canvas-2D one — good enough, WebGL is a "consider"); a new flip-centric obstacle (needs new levels →
+overlaps Epic C); and **importing one real music track** (breaks the no-asset invariant → owner
+decision, deferred). Original notes below.
 
 - **Per-difficulty `moveSpeed`** (e.g. ~240 / ~290 / ~330). This is the biggest single feel win.
 - **Juice:** 3-frame hit-stop on death; motion trail behind the player; chromatic/scale pop on flip;
