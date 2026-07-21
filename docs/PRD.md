@@ -19,10 +19,10 @@
 - **The owner cannot pay for AI APIs.** Use **offline generation** (you, the model, generate
   content now and commit it) or **free tiers** (Groq / Google Gemini). The validator is the quality
   gate, so model strength barely matters.
-- **Kick off epics in the order in section 6.** Epic A (Hunter v2) **DONE**; Epic B (feel/visuals/
-  speed pass) **LARGELY DONE (2026-07-21)** — only optional items left (music decision, new obstacle,
-  WebGL bloom). **Epic C (redesign Normal + a post-Nightmare tier) is next.** Do ONE epic at a time;
-  verify; commit; push (auto-deploys).
+- **Kick off epics in the order in section 6.** Epics A (Hunter v2), B (feel/visuals/speed — bar the
+  optional music/new-obstacle/WebGL-bloom items), and C (Normal redesign + Abyss tier) are all
+  **DONE (2026-07-21)**. **Epic D (offline AI level generation, validator-gated) is next.** Do ONE
+  epic at a time; verify; commit; push (auto-deploys).
 
 ---
 
@@ -104,8 +104,8 @@ sharecard), `src/main.ts` (app shell), `scripts/*` (validate/sim/smoke).
 
 1. ~~**`moveSpeed` is identical (260) across all three difficulties.**~~ **FIXED (Epic B):** Normal
    290, Nightmare 330 (Casual frozen 260).
-2. **Normal levels are geometrically too gentle** → Normal "feels like Casual" despite harder
-   physics. Difficulty must come from level-design pressure. → Epic C.
+2. ~~**Normal levels are geometrically too gentle**~~ **FIXED (Epic C):** all 12 rebuilt with
+   at-the-limit crossings, ceiling-pinned refuel windows, and tighter routing.
 3. ~~**Saw hitbox vs visual mismatch**~~ **FIXED (Epic B):** now a toothed blade sized to the ~14px
    kill hitbox (silhouette matches the lethal zone), calmer `time*3` spin. Hitbox unchanged.
 4. ~~**Faller commits on first touch**~~ **FIXED (Epic B):** crumbles from time *spent standing* and
@@ -236,13 +236,23 @@ decision, deferred). Original notes below.
 > from **animation + bloom + parallax**, all cheap and in the current stack. No external assets
 > except (maybe) music.
 
-### Epic C — Redesign Normal + a post-Nightmare tier
+### Epic C — Redesign Normal + a post-Nightmare tier (DONE 2026-07-21)
 
-- Rebuild the 12 Normal levels so the **geometry** demands the harder physics (tighter flip windows,
-  real energy pressure), not just heavier numbers. Keep them validator-passing.
-- Add a **4th tier above Nightmare** (owner + friends cleared Nightmare) — e.g., "Abyss": everything
-  + the Hunter always on + near-zero margins.
-- **Acceptance:** Normal no longer "feels like Casual"; `validate` passes all sets.
+**Shipped.** (1) **Normal rebuilt** — all 12 levels redesigned so difficulty comes from the geometry:
+6-tile crossings sitting right at the energy limit (validator flags them "near limit"), tiny 2–3
+tile refuel windows pinned by ceiling teeth, tighter interiors, ferries chained straight into a
+flip. (2) **Abyss** — a real 4th tier: new physics/energy profile (gravity 3800, moveSpeed 370,
+~0.61s/flip; `ABYSS_PHYS`/`ABYSS_ENERGY` in config.ts), 12 new levels (Nightmare's vocabulary
+intensified — floor runs ≤2, dense pits/movers/D/saws/zones), a difficulty card
+(`difficulty.ts`), and **the Encroaching Dark is always on** (forced in `main.ts` `startLevel`).
+Validator (`DIFFS`) + simtest loops extended to abyss; per-difficulty storage/leaderboard/progress
+work automatically. **Acceptance met:** `validate` = 0 problems across all 4 sets (warnings are the
+intended at-limit crossings), simtest 0 exceptions, Casual frozen (7/12). **Playtest note:** the
+bot clears 0 Normal/Abyss (its hardcoded timings can't handle the tight geometry) — the validator's
+energy-budget model is the solvability gate; a human tuning pass is still wanted.
+
+- ~~Rebuild the 12 Normal levels~~ **DONE.**
+- ~~Add a 4th tier above Nightmare ("Abyss")~~ **DONE.**
 
 ### Epic D — AI level generation (offline, validator-gated) — the infrastructure
 

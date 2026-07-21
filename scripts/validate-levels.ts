@@ -6,7 +6,7 @@ import { Level, Tile } from "../src/game/level.ts";
 import { LEVEL_SETS, WORLD_NAMES, levelLabel } from "../src/game/levels.ts";
 import { ZONE_DRAIN_MUL } from "../src/game/obstacles.ts";
 
-const DIFFS: Difficulty[] = ["casual", "normal", "nightmare"];
+const DIFFS: Difficulty[] = ["casual", "normal", "nightmare", "abyss"];
 let problems = 0;
 let warnings = 0;
 const fail = (l: string, m: string) => {

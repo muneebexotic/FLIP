@@ -20,7 +20,7 @@ export const MAX_FRAME_DT = 0.25;
 /** After this many deaths on a level we surface the "share your struggle" card. */
 export const SHARE_DEATH_THRESHOLD = 8;
 
-export type Difficulty = "casual" | "normal" | "nightmare";
+export type Difficulty = "casual" | "normal" | "nightmare" | "abyss";
 
 export interface PhysConfig {
   readonly moveSpeed: number;
@@ -119,15 +119,42 @@ const NIGHTMARE_ENERGY: EnergyConfig = {
   warnFrac: 0.35,
 };
 
+// ── Abyss: the post-Nightmare tier. Faster, heavier, near-zero fuel; the dark
+//    (Hunter) is always on. Everything is at its limit. ──
+const ABYSS_PHYS: PhysConfig = {
+  moveSpeed: 370, // fastest of all — the world screams past
+  groundAccel: 2800,
+  groundFriction: 3000,
+  airAccel: 2050,
+  airFriction: 720,
+  gravity: 3800,
+  riseGravity: 2450,
+  maxFall: 1500,
+  jumpSpeed: 495,
+  jumpCut: 0.26,
+  coyoteTime: 0.03,
+  jumpBuffer: 0.05,
+  playerW: 26,
+  playerH: 34,
+};
+const ABYSS_ENERGY: EnergyConfig = {
+  max: 50,
+  drain: 82, // ~0.61 s per flip — and gravity zones cut that nearly in half
+  recharge: 165,
+  warnFrac: 0.42,
+};
+
 export const PHYS_PROFILES: Record<Difficulty, PhysConfig> = {
   casual: CASUAL_PHYS,
   normal: NORMAL_PHYS,
   nightmare: NIGHTMARE_PHYS,
+  abyss: ABYSS_PHYS,
 };
 export const ENERGY_PROFILES: Record<Difficulty, EnergyConfig> = {
   casual: CASUAL_ENERGY,
   normal: NORMAL_ENERGY,
   nightmare: NIGHTMARE_ENERGY,
+  abyss: ABYSS_ENERGY,
 };
 
 /** Active profiles (live bindings). Default = Casual so tooling/scripts match. */

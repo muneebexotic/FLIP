@@ -235,7 +235,7 @@ console.log(`  bot solved ${botWins}/${LEVELS.length} Casual levels`);
 //    isn't expected to clear the hard sets — it drives the engine, not skill.
 console.log("\n• Engine handles all levels across all difficulties (no crashes)");
 let engineErrors = 0;
-for (const d of ["casual", "normal", "nightmare"] as Difficulty[]) {
+for (const d of ["casual", "normal", "nightmare", "abyss"] as Difficulty[]) {
   applyPhysics(d);
   applyLevelSet(d);
   let wins = 0;

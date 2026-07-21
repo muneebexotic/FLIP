@@ -1,7 +1,7 @@
 import "./styles.css";
 import { SHARE_DEATH_THRESHOLD, VIEW } from "./config";
 import type { Difficulty } from "./config";
-import { initDifficulty, setDifficulty } from "./difficulty";
+import { getDifficulty, initDifficulty, setDifficulty } from "./difficulty";
 import type { Action } from "./core/input";
 import { GameLoop } from "./core/loop";
 import { applyBloom, bloomStrength, initBloom, isBloomOn, setBloomOn } from "./engine/bloom";
@@ -60,6 +60,8 @@ const ui = new AppUI({
 });
 
 function startLevel(index: number): void {
+  // Abyss is always hunted — the dark is part of the tier, not an opt-in.
+  if (getDifficulty() === "abyss") game.setHunted(true);
   game.loadLevel(index);
   ui.enterPlay(isTouch);
 }

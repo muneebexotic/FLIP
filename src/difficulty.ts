@@ -40,6 +40,13 @@ export const DIFFICULTIES: DiffMeta[] = [
     blurb: "Moving hazards. Gravity zones. No mercy.",
     accent: "#ff5470",
   },
+  {
+    id: "abyss",
+    name: "Abyss",
+    tagline: "The dark is always here",
+    blurb: "Everything, always hunted, near-zero margins.",
+    accent: "#c77dff",
+  },
 ];
 
 let current: Difficulty = "casual";

@@ -299,10 +299,93 @@ const NIGHTMARE_LEVELS: LevelDef[] = [
   ng10, ng11, ng12,
 ];
 
+// ═══ Abyss — post-Nightmare: everything, always hunted, ~0.61s/flip ═══════════
+// The Encroaching Dark is ALWAYS on here (forced in main.ts). Floor spike runs
+// ≤ 2 (hop them); the difficulty is the brutal physics, dense hazards, gravity
+// zones, and having to do it all while outrunning the dark. Levels stay short so
+// the chase never becomes unfair.
+
+// World 1 · Dusk
+const ab1 = corridorX(0, "Threshold", 12, "The dark never leaves now. Keep moving.", 24, 3,
+  "",
+  ".P...^^...____...^^...G",
+  { movers: [ferry(10, 2, 3, 3.2, 3)] },
+);
+const ab2 = corridorX(0, "Freefall", 15, "Hop the teeth, ride the gap, never stop", 34, 3,
+  ".......^^",
+  ".P...^^...^^..____..^^...G",
+  { movers: [ferry(14, 2, 3, 3.2, 3)] },
+);
+const ab3 = corridorX(0, "Sever", 18, "Flip and unflip in a single breath", 34, 3,
+  "......^^..^^..^^",
+  ".P..^^..^^..^^..^^..^^..G",
+);
+
+// World 2 · Ember (+ disappearing platforms)
+const ab4 = corridorX(1, "Crumble", 20, "The floor won't wait for you", 34, 3,
+  "",
+  ".P...DDDD..^^..____..^^..G",
+  { movers: [ferry(15, 2, 3, 3.2, 3)] },
+);
+const ab5 = corridorX(1, "Lapse", 24, "Vanishing steps over the void", 40, 3,
+  "..........^^",
+  ".P..DD..^^..DDDD..^^..DD..G",
+);
+const ab6 = corridorX(1, "Fracture", 28, "Ride, drop, ride — no floor to trust", 44, 3,
+  "",
+  ".P..DD..____..^^..____..DD..G",
+  { movers: [ferry(8, 2, 3, 3.2, 3), ferry(18, 2, 3, 3.2, 3, 0.5)] },
+);
+
+// World 3 · Bloom (+ moving hazards + gravity zones)
+const ab7 = corridorX(2, "Sawmill", 32, "The teeth move. So does the dark.", 42, 3,
+  "",
+  ".P...^^...^^...^^...^^...G",
+  { saws: [floorSaw(9, 3, 3.5, 3), floorSaw(19, 3, 3.5, 3, 0.5)] },
+);
+const ab8 = corridorX(2, "Heavy", 36, "In the field you fall — and drain — twice as hard", 42, 3,
+  "..........^^",
+  ".P...^^..____..^^..^^..G",
+  { movers: [ferry(9, 2, 3, 3.2, 3)], zones: [zone(16, 7, 3)] },
+);
+const ab9 = corridorX(2, "Grind", 40, "Moving teeth in a heavy field. Thread it fast.", 44, 3,
+  "",
+  ".P...^^...^^...^^...^^...G",
+  { saws: [ceilSaw(8, 4, 3.5), floorSaw(18, 4, 3.5, 3)], zones: [zone(13, 6, 3)] },
+);
+
+// World 4 · Void (everything, tight 3-tile corridors)
+const ab10 = corridorX(3, "Vice", 46, "Three tiles of air. Flip on instinct.", 44, 3,
+  ".....^^..^^..^^..^^..^^",
+  ".P.^^..^^..^^..^^..^^..^^..G",
+);
+const ab11 = corridorX(3, "Collapse", 54, "Everything, all at once, all lethal", 28, 3,
+  "",
+  ".P..DD..^^..____..DD..^^..G",
+  { movers: [ferry(12, 2, 3, 3.4, 3)], saws: [ceilSaw(6, 3, 3.5)], zones: [zone(8, 8, 3)] },
+);
+const ab12 = corridorX(3, "Oblivion", 75, "There is no margin left. Only the run.", 42, 3,
+  "",
+  ".P..^^..DDDD..^^..____..^^..DDDD..^^..G",
+  {
+    movers: [ferry(18, 2, 3, 3.6, 3)],
+    saws: [floorSaw(6, 3, 4, 3), ceilSaw(28, 4, 4)],
+    zones: [zone(14, 8, 3)],
+  },
+);
+
+const ABYSS_LEVELS: LevelDef[] = [
+  ab1, ab2, ab3,
+  ab4, ab5, ab6,
+  ab7, ab8, ab9,
+  ab10, ab11, ab12,
+];
+
 export const LEVEL_SETS: Record<Difficulty, LevelDef[]> = {
   casual: CASUAL_LEVELS,
   normal: NORMAL_LEVELS,
   nightmare: NIGHTMARE_LEVELS,
+  abyss: ABYSS_LEVELS,
 };
 
 /** Active level set (live binding). Default = Casual so tooling/scripts match. */
